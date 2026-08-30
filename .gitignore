@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter
+.ipynb_checkpoints/
+
+# PyTorch model checkpoints
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# Data files (large - don't commit)
+data/raw/
+data/processed/prototype_pairs.csv
+data/processed/prototype_annotations.parquet
+BigEarthNet.txt
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+
+# Distribution
+*.tar.gz
+*.zip
+*.zst
+
+# Temporary files
+tmp/
+temp/
+*.tmp
