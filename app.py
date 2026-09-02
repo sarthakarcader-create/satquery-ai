@@ -7,9 +7,9 @@ Interactive web interface for SatQuery AI.
 Run locally:
     streamlit run app.py
 """
-
 import streamlit as st
 import torch
+import textwrap
 import numpy as np
 from pathlib import Path
 import sys
@@ -45,7 +45,7 @@ st.set_page_config(
 # ============================================================
 
 st.markdown(
-    """
+    textwrap.dedent("""
     <style>
 
     /* ---------- Global ---------- */
@@ -207,7 +207,7 @@ st.markdown(
     }
 
     </style>
-    """,
+    """),
     unsafe_allow_html=True,
 )
 
@@ -447,26 +447,26 @@ if "analysis_complete" not in st.session_state:
 # ============================================================
 
 st.markdown(
-    """
-    <div class="hero">
+    textwrap.dedent("""
+        <div class="hero">
 
-        <div class="status">
-            <span class="dot"></span>
-            SATQUERY AI
+            <div class="status">
+                <span class="dot"></span>
+                SATQUERY AI
+            </div>
+
+            <div class="hero-title">
+                Ask questions about Earth.
+            </div>
+
+            <div class="hero-subtitle">
+                Analyze Sentinel-1 SAR and Sentinel-2 optical imagery
+                using natural-language queries and an evidence-grounded
+                satellite intelligence pipeline.
+            </div>
+
         </div>
-
-        <div class="hero-title">
-            Ask questions about Earth.
-        </div>
-
-        <div class="hero-subtitle">
-            Analyze Sentinel-1 SAR and Sentinel-2 optical imagery
-            using natural-language queries and an evidence-grounded
-            satellite intelligence pipeline.
-        </div>
-
-    </div>
-    """,
+    """),
     unsafe_allow_html=True,
 )
 
@@ -629,7 +629,7 @@ with right:
     if s2_file is not None:
 
         st.markdown(
-            f"""
+            textwrap.dedent(f"""
             <div class="file-card">
                 <div class="file-name">
                     🟢 {s2_file.name}
@@ -638,14 +638,14 @@ with right:
                     Sentinel-2 · {format_bytes(s2_file.size)}
                 </div>
             </div>
-            """,
+            """),
             unsafe_allow_html=True,
         )
 
     else:
 
         st.markdown(
-            """
+            textwrap.dedent("""
             <div class="file-card">
                 <div class="file-name">
                     Sentinel-2
@@ -654,14 +654,14 @@ with right:
                     No optical imagery uploaded
                 </div>
             </div>
-            """,
+            """),
             unsafe_allow_html=True,
         )
 
     if s1_file is not None:
 
         st.markdown(
-            f"""
+            textwrap.dedent(f"""
             <div class="file-card">
                 <div class="file-name">
                     🔵 {s1_file.name}
@@ -670,14 +670,14 @@ with right:
                     Sentinel-1 · {format_bytes(s1_file.size)}
                 </div>
             </div>
-            """,
+            """),
             unsafe_allow_html=True,
         )
 
     else:
 
         st.markdown(
-            """
+            textwrap.dedent("""
             <div class="file-card">
                 <div class="file-name">
                     Sentinel-1
@@ -686,7 +686,7 @@ with right:
                     No SAR imagery uploaded
                 </div>
             </div>
-            """,
+            """),
             unsafe_allow_html=True,
         )
 
@@ -844,7 +844,7 @@ if st.session_state.analysis_complete:
             st.markdown("#### Answer")
 
             st.markdown(
-                f"""
+                textwrap.dedent(f"""
                 <div class="card">
                     <div style="
                         font-size:1.15rem;
@@ -854,7 +854,7 @@ if st.session_state.analysis_complete:
                         {answer}
                     </div>
                 </div>
-                """,
+                """),
                 unsafe_allow_html=True,
             )
 
@@ -948,12 +948,12 @@ st.markdown(
 )
 
 st.markdown(
-    """
+    textwrap.dedent("""
     <div class="muted">
         Uploaded imagery is available to the analysis pipeline.
         Visualization below provides a quick raster preview.
     </div>
-    """,
+    """),
     unsafe_allow_html=True,
 )
 
@@ -1018,7 +1018,7 @@ with viewer_left:
     else:
 
         st.markdown(
-            """
+            textwrap.dedent("""
             <div class="card" style="
                 min-height:260px;
                 display:flex;
@@ -1044,7 +1044,7 @@ with viewer_left:
                     </div>
                 </div>
             </div>
-            """,
+            """),
             unsafe_allow_html=True,
         )
 
@@ -1104,7 +1104,7 @@ with viewer_right:
     else:
 
         st.markdown(
-            """
+            textwrap.dedent("""
             <div class="card" style="
                 min-height:260px;
                 display:flex;
@@ -1130,7 +1130,7 @@ with viewer_right:
                     </div>
                 </div>
             </div>
-            """,
+            """),
             unsafe_allow_html=True,
         )
 
@@ -1140,7 +1140,7 @@ with viewer_right:
 # ============================================================
 
 st.markdown(
-    """
+    textwrap.dedent("""
     <div style="
         margin-top:35px;
         padding-top:18px;
@@ -1151,6 +1151,6 @@ st.markdown(
     ">
         SatQuery AI · Earth Observation Intelligence
     </div>
-    """,
+    """),
     unsafe_allow_html=True,
 )
