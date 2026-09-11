@@ -1,0 +1,15 @@
+version: "3.8"
+
+services:
+  satquery-portal:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./samples:/app/samples
+    restart: unless-stopped
