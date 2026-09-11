@@ -12,6 +12,7 @@ This application is Streamlit-only. It does not start Gradio or any
 secondary web server.
 """
 
+import base64
 import sys
 from pathlib import Path
 
@@ -32,6 +33,25 @@ from src.agents.controller import SatQueryController
 
 
 # ============================================================
+# Landing Page State
+# (checked before set_page_config so we can control the
+# sidebar's initial state depending on whether the hero or
+# the tool is being shown)
+# ============================================================
+
+if "launched" not in st.session_state:
+    st.session_state.launched = False
+
+
+def launch():
+    st.session_state.launched = True
+
+
+def go_home():
+    st.session_state.launched = False
+
+
+# ============================================================
 # Page Configuration
 # ============================================================
 
@@ -39,16 +59,28 @@ st.set_page_config(
     page_title="SatQuery AI",
     page_icon="🛰️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded" if st.session_state.launched else "collapsed",
 )
+
+
+# ============================================================
+# Hero Image
+# ============================================================
+
+@st.cache_data
+def get_base64(path: str) -> str:
+    return base64.b64encode(Path(path).read_bytes()).decode()
+
+
+HERO_IMG = get_base64("assets/hero.jpg")
 
 
 # ============================================================
 # Styling
 # ============================================================
 
-# This is the ONLY HTML in the application, and it is CSS only.
-# All visible page content below uses native Streamlit components.
+# Base dark theme — applies on both the landing hero and the
+# tool view.
 st.markdown(
     """<style>
     .stApp {
@@ -97,6 +129,103 @@ st.markdown(
     </style>""",
     unsafe_allow_html=True,
 )
+
+if not st.session_state.launched:
+    # Landing-only overrides: strip Streamlit chrome and default
+    # padding so the hero image can go full-bleed.
+    st.markdown(
+        f"""<style>
+        @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
+
+        [data-testid="stHeader"], footer, section[data-testid="stSidebar"] {{
+            display: none;
+        }}
+        .block-container {{
+            padding: 0 !important;
+            max-width: 100% !important;
+        }}
+
+        .hero {{
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            margin: -2rem -1rem -3rem -1rem;
+            background-image: url('data:image/jpeg;base64,{HERO_IMG}');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 3.5rem 4rem;
+            box-sizing: border-box;
+        }}
+        .hero h1 {{
+            font-family: 'Anton', sans-serif;
+            font-size: clamp(2.5rem, 6vw, 5.5rem);
+            color: white !important;
+            margin: 0;
+            letter-spacing: 2px;
+            text-shadow: 2px 2px 10px rgba(0,0,0,0.7);
+        }}
+        .tagline-block {{
+            align-self: flex-end;
+            text-align: right;
+        }}
+        .tagline-block .tagline {{
+            font-family: 'Anton', sans-serif;
+            font-size: clamp(1.4rem, 3vw, 2.6rem);
+            color: white;
+            line-height: 1.2;
+            text-shadow: 1px 1px 8px rgba(0,0,0,0.8);
+        }}
+
+        div[data-testid="column"]:has(button#launch_btn) {{
+            position: absolute;
+            right: 4rem;
+            bottom: 3rem;
+            width: auto !important;
+        }}
+        .stButton > button#launch_btn {{
+            background: white;
+            color: #5170ff;
+            border: 2px solid #5170ff;
+            border-radius: 999px;
+            font-family: 'Anton', sans-serif;
+            font-size: 1.1rem;
+            padding: 0.5rem 2rem;
+            letter-spacing: 1px;
+        }}
+        .stButton > button#launch_btn:hover {{
+            background: #5170ff;
+            color: white;
+        }}
+        </style>""",
+        unsafe_allow_html=True,
+    )
+
+
+# ============================================================
+# Landing / Hero View
+# ============================================================
+
+if not st.session_state.launched:
+    st.markdown(
+        """
+        <div class="hero">
+            <h1>SAT QUERY AI</h1>
+            <div class="tagline-block">
+                <div class="tagline">Talk to the Earth<br>in Plain Language.</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    _, launch_col = st.columns([5, 1])
+    with launch_col:
+        st.button("LAUNCH", key="launch_btn", on_click=launch)
+
+    st.stop()
 
 
 # ============================================================
@@ -270,7 +399,12 @@ if "analysis_complete" not in st.session_state:
 # Header - NATIVE STREAMLIT ONLY
 # ============================================================
 
-st.markdown("### 🛰️ SATQUERY AI")
+header_l, header_r = st.columns([6, 1])
+with header_l:
+    st.markdown("### 🛰️ SATQUERY AI")
+with header_r:
+    st.button("← Home", on_click=go_home)
+
 st.title("Ask questions about Earth.")
 st.markdown(
     "Analyze Sentinel-1 SAR and Sentinel-2 optical imagery using "
