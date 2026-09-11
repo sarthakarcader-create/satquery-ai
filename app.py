@@ -177,7 +177,7 @@ div[data-testid="stMarkdownContainer"] > div {
 .hero-message {
     position: absolute;
     z-index: 3;
-    left: 69.5vw;
+    left: 66.5vw;
     top: 42.5vh;
     margin: 0 !important;
     padding: 0 !important;
