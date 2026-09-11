@@ -125,34 +125,37 @@ if not st.session_state.launched:
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
 
-/* Remove Streamlit chrome on the landing screen */
+/* =========================
+   LANDING PAGE ONLY
+   ========================= */
+
 [data-testid="stHeader"],
 footer,
 section[data-testid="stSidebar"] {
     display: none !important;
 }
 
-/* Full-bleed page */
 .block-container {
     padding: 0 !important;
-    max-width: none !important;
+    max-width: 100% !important;
 }
 
 .stApp {
-    overflow: hidden;
-    background: #07111f !important;
+    overflow: hidden !important;
+    background: #000 !important;
 }
 
-/* Do NOT let the markdown container become a visible card */
+/* Remove the normal markdown spacing around our hero */
 div[data-testid="stMarkdown"],
 div[data-testid="stMarkdownContainer"],
 div[data-testid="stMarkdownContainer"] > div {
-    background: transparent !important;
-    padding: 0 !important;
     margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
 }
 
-/* Hero */
+/* The video already contains the Earth + satellite visual.
+   We only provide the positioning layer for the SVG text/button. */
 .hero {
     position: relative;
     width: 100vw;
@@ -163,214 +166,244 @@ div[data-testid="stMarkdownContainer"] > div {
     background: #000;
 }
 
-/* Video is already the complete Earth + satellite visual */
+/* Background video */
 .hero-video {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
+    display: block;
     object-fit: cover;
     object-position: center center;
-    display: block;
     z-index: 0;
 }
 
-/* Subtle darkening on the left and lower-right, matching the SVG */
+/* Very subtle readability layer */
 .hero-overlay {
     position: absolute;
     inset: 0;
     z-index: 1;
     pointer-events: none;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(0, 0, 20, 0.28) 0%,
-            rgba(0, 0, 20, 0.04) 48%,
-            rgba(0, 0, 0, 0.10) 100%
-        ),
-        linear-gradient(
-            180deg,
-            rgba(0, 0, 0, 0.08) 0%,
-            rgba(0, 0, 0, 0.00) 48%,
-            rgba(0, 0, 0, 0.10) 100%
-        );
+    background: linear-gradient(
+        90deg,
+        rgba(0, 0, 20, 0.14) 0%,
+        rgba(0, 0, 20, 0.00) 42%,
+        rgba(0, 0, 0, 0.03) 100%
+    );
 }
 
-/* SVG-equivalent headline */
+/* =========================
+   SVG: MAIN HEADING
+   ========================= */
+
 .hero-title {
     position: absolute;
-    top: 4.4rem;
-    left: 1.7rem;
     z-index: 3;
 
-    margin: 0;
-    padding: 0;
+    top: 6.0vh;
+    left: 1.85vw;
 
-    font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif;
-    font-size: clamp(4.2rem, 7.0vw, 7.8rem);
-    font-weight: 400;
-    line-height: 0.92;
-    letter-spacing: 1px;
+    margin: 0 !important;
+    padding: 0 !important;
+
+    font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
+    font-size: clamp(4.1rem, 8.3vw, 8rem) !important;
+    font-weight: 400 !important;
+    font-style: normal !important;
+
+    line-height: 0.88 !important;
+    letter-spacing: 0 !important;
+    word-spacing: 0 !important;
 
     color: #ffffff !important;
     white-space: nowrap;
 
-    text-shadow: 3px 4px 12px rgba(0, 0, 0, 0.38);
+    text-shadow: 2px 3px 8px rgba(0, 0, 0, 0.28);
 }
 
-/* SVG-equivalent right-side message */
+/* =========================
+   SVG: RIGHT-HAND MESSAGE
+   ========================= */
+
 .hero-message {
     position: absolute;
-    right: 2.2rem;
-    top: 49.3%;
-    transform: translateY(-50%);
     z-index: 3;
 
-    margin: 0;
-    padding: 0;
+    left: 68.5vw;
+    top: 49.2vh;
 
-    font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif;
-    font-size: clamp(2.4rem, 4.1vw, 4.5rem);
-    font-weight: 400;
-    line-height: 0.91;
-    letter-spacing: 0.4px;
-
-    color: #ffffff;
-    text-align: left;
-    white-space: nowrap;
-
-    text-shadow: 3px 4px 13px rgba(0, 0, 0, 0.50);
-}
-
-/* Native Streamlit button is used only for reliable state transition.
-   It is styled to look like the SVG's custom Launch pill. */
-div[data-testid="stButton"] {
-    position: fixed !important;
-    right: 11.0rem;
-    top: 80.2%;
-    transform: translateY(-50%);
-    z-index: 20;
-
-    width: auto !important;
     margin: 0 !important;
     padding: 0 !important;
+
+    font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
+    font-size: clamp(2.2rem, 4.25vw, 4.25rem) !important;
+    font-weight: 400 !important;
+    font-style: normal !important;
+
+    line-height: 0.88 !important;
+    letter-spacing: 0 !important;
+    word-spacing: 0 !important;
+
+    color: #ffffff !important;
+    text-align: left;
+
+    white-space: nowrap;
+
+    text-shadow: 2px 3px 8px rgba(0, 0, 0, 0.28);
+}
+
+/* =========================
+   SVG: LAUNCH BUTTON
+   ========================= */
+
+/* Native Streamlit button is used so the existing launch()
+   state transition remains reliable. */
+div[data-testid="stButton"] {
+    position: fixed !important;
+
+    left: 73.05vw !important;
+    top: 77.3vh !important;
+
+    width: 128px !important;
+    height: 34px !important;
+
+    margin: 0 !important;
+    padding: 0 !important;
+
+    z-index: 20 !important;
 }
 
 div[data-testid="stButton"] > button {
-    min-width: 166px !important;
-    min-height: 50px !important;
+    position: relative !important;
 
-    padding: 9px 16px 9px 24px !important;
+    width: 128px !important;
+    min-width: 128px !important;
+
+    height: 34px !important;
+    min-height: 34px !important;
+
+    margin: 0 !important;
+    padding: 0 31px 0 13px !important;
 
     border: 0 !important;
     border-radius: 999px !important;
 
     background: #ffffff !important;
-    color: #5875ff !important;
+    color: #5d78ff !important;
 
     font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
-    font-size: 1.35rem !important;
+    font-size: 1.12rem !important;
     font-weight: 400 !important;
     font-style: italic !important;
-    letter-spacing: 0.2px !important;
+
+    line-height: 34px !important;
+    letter-spacing: 0 !important;
 
     box-shadow: none !important;
+
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+
     transition: transform 0.18s ease, box-shadow 0.18s ease !important;
 }
 
-/* Use the Streamlit button's real text; the circular icon is provided via CSS */
 div[data-testid="stButton"] > button p {
     margin: 0 !important;
+    padding: 0 !important;
+    font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
+    font-style: italic !important;
+    font-size: 1.12rem !important;
     line-height: 1 !important;
+    color: #5d78ff !important;
 }
 
+/* Circular blue play icon */
 div[data-testid="stButton"] > button::after {
     content: '▶';
-    display: inline-flex;
+
+    position: absolute;
+    right: 4px;
+    top: 4px;
+
+    width: 26px;
+    height: 26px;
+
+    display: flex;
     align-items: center;
     justify-content: center;
 
-    width: 31px;
-    height: 31px;
-    margin-left: 10px;
-
     border-radius: 50%;
-    background: #5c78ff;
+    background: #5d78ff;
     color: #ffffff;
 
-    font-family: Arial, sans-serif;
-    font-size: 12px;
-    font-style: normal;
-    line-height: 1;
-    vertical-align: middle;
+    font-family: Arial, sans-serif !important;
+    font-size: 10px !important;
+    font-style: normal !important;
+    line-height: 1 !important;
 }
 
 div[data-testid="stButton"] > button:hover {
     background: #ffffff !important;
-    color: #5875ff !important;
-    transform: scale(1.035);
-    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18) !important;
+    color: #526fff !important;
+
+    transform: scale(1.03) !important;
+
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14) !important;
 }
 
-div[data-testid="stButton"] > button:hover::after {
-    background: #4f6cff;
+div[data-testid="stButton"] > button:hover p {
+    color: #526fff !important;
 }
 
-div[data-testid="stButton"] > button:active {
-    transform: scale(0.99);
+div[data-testid="stButton"] > button:focus,
+div[data-testid="stButton"] > button:focus-visible {
+    background: #ffffff !important;
+    color: #5d78ff !important;
+    box-shadow: none !important;
 }
 
-/* Keep the Streamlit widget itself visually transparent */
-div[data-testid="stButton"] > div {
-    background: transparent !important;
-}
+/* =========================
+   RESPONSIVE
+   ========================= */
 
-/* Responsive */
 @media (max-width: 1100px) {
     .hero-title {
-        left: 1.4rem;
-        top: 3rem;
-        font-size: clamp(3.4rem, 8.5vw, 6rem);
+        top: 5vh;
+        left: 2vw;
+        font-size: clamp(3.5rem, 8.8vw, 6.5rem) !important;
     }
 
     .hero-message {
-        right: 1.5rem;
-        font-size: clamp(2rem, 5vw, 3.7rem);
+        left: 66vw;
+        top: 49vh;
+        font-size: clamp(2rem, 4.8vw, 3.7rem) !important;
     }
 
     div[data-testid="stButton"] {
-        right: 7rem;
-        top: 78%;
+        left: 71vw !important;
+        top: 76vh !important;
     }
 }
 
 @media (max-width: 700px) {
     .hero-title {
-        top: 2rem;
-        left: 1rem;
-        font-size: clamp(2.4rem, 12vw, 4.3rem);
-        white-space: normal;
+        top: 3vh;
+        left: 4vw;
+        font-size: clamp(2.7rem, 13vw, 4.8rem) !important;
     }
 
     .hero-message {
-        right: 1rem;
-        top: 56%;
-        font-size: clamp(1.65rem, 8vw, 3rem);
+        left: 8vw;
+        top: 54vh;
+        font-size: clamp(1.8rem, 9vw, 3rem) !important;
         white-space: normal;
-        max-width: 78vw;
     }
 
     div[data-testid="stButton"] {
-        right: 1rem;
-        top: auto;
-        bottom: 2rem;
-        transform: none;
-    }
-
-    div[data-testid="stButton"] > button {
-        min-width: 145px !important;
-        min-height: 46px !important;
-        font-size: 1.1rem !important;
+        left: 8vw !important;
+        top: auto !important;
+        bottom: 4vh !important;
     }
 }
 </style>
@@ -378,20 +411,18 @@ div[data-testid="stButton"] > div {
         unsafe_allow_html=True,
     )
 
-
 # ============================================================
 # Landing / Hero View
 # ============================================================
 
 if not st.session_state.launched:
-    # The markup is deliberately left-aligned at column 0 inside the
-    # HTML string so Streamlit/Markdown cannot interpret it as a code block.
+    # IMPORTANT: HTML is deliberately kept as one continuous line.
+    # This prevents Streamlit Markdown from treating indented HTML as code.
     st.markdown(
         f"""<div class="hero"><video class="hero-video" autoplay muted loop playsinline preload="auto"><source src="data:video/mp4;base64,{HERO_VIDEO}" type="video/mp4"></video><div class="hero-overlay"></div><h1 class="hero-title">SAT QUERY AI</h1><div class="hero-message">Satellite Image<br>Queries<br>Simplified...</div></div>""",
         unsafe_allow_html=True,
     )
 
-    # One native Streamlit button = reliable session-state transition.
     st.button(
         "Launch",
         key="launch_btn",
@@ -399,7 +430,6 @@ if not st.session_state.launched:
     )
 
     st.stop()
-
 
 # ============================================================
 # Helpers
