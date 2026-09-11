@@ -1,103 +1,89 @@
-# 🛰️ SatQuery AI — Earth Observation Intelligence Portal
+# 🛰️ SatQuery AI
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io)
-[![Smart India Hackathon 2026](https://img.shields.io/badge/SIH-2026_Selection-F37021?style=flat&logo=satellite)](https://www.sih.gov.in/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=flat&logo=pytorch)](https://pytorch.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?style=flat&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Rasterio](https://img.shields.io/badge/Geospatial-Rasterio_&_GDAL-228B22?style=flat)](https://rasterio.readthedocs.io/)
+**An Agentic Vision-Language Assistant for Multimodal Remote-Sensing Image Analysis**
 
-**SatQuery AI** is an autonomous, evidence-grounded remote sensing intelligence platform and GIS workstation developed by **Team Aarohan** for the **Smart India Hackathon (SIH)**.
+SatQuery AI is an intelligent satellite imagery analysis system that accepts natural-language queries and provides evidence-grounded responses about observed scenes. It processes Sentinel-1 (SAR) and Sentinel-2 (optical) satellite imagery through a custom Vision-Language Model with 48.7M parameters.
 
-Instead of requiring complex desktop GIS software, manual band mathematics, or proprietary remote sensing tools, SatQuery AI allows users to query Earth Observation imagery using conversational, natural-language questions. Every response is verified through physical spectral indices (NDWI, NDVI, SAR dB backscatter) and localized with pixel-accurate bounding box coordinates.
+## 🎯 Supported Tasks
 
----
+| Task | Input | Output | Example Query |
+|------|-------|--------|---------------|
+| **Binary VQA** | S1+S2 image + question | Yes/No + confidence | "Is there water in this image?" |
+| **MCQ VQA** | S1+S2 image + choices | Selected option | "Which covers more area: forest or water?" |
+| **Bounding Box** | S1+S2 image + question | [x1,y1,x2,y2] coordinates | "Highlight the forested area" |
+| **Captioning** | S1+S2 image | Natural language description | "Describe the land cover in this scene" |
 
-## 🚀 Key Innovations
-
-1. **Dual-Stream Multi-Modal Ingestion**: Handles both Sentinel-2 (12-band multispectral optical) and Sentinel-1 (C-band dual-polarization SAR radar).
-2. **Autonomous Agentic Controller**: Routes queries to specialized neural vision heads while validating raster georeferencing, spectral bands, and query intents.
-3. **48.7M Parameter PyTorch VLM**: Custom Vision Transformer (ViT) architecture featuring cross-modal attention fusion between text questions and satellite image embeddings.
-4. **Physical Spectral Grounding**: Combines neural logits with real-time remote sensing analytics (NDWI water masking, NDVI vegetation vigor, and SAR polarimetric surface roughness) for 100% verifiable outputs.
-5. **Interactive 3-Panel GIS Workstation**: Features multi-band composite switching (True Color RGB vs False Color NIR), optical/SAR cross-fade opacity blending, real-time extent metadata, and visual evidence overlays.
-6. **1-Click SIH Live Demo Mode**: Built-in sample validation scenes allow immediate, zero-friction demonstration without requiring external GeoTIFF downloads.
-
----
-
-## 🎯 Supported Analytical Tasks
-
-| Task Type | Target Sensors | Model Head & Grounding | Example Question |
-|-----------|----------------|------------------------|------------------|
-| **Binary VQA** | S1 (SAR) + S2 (Optical) | Binary Head + NDWI / NDVI verification | *"Is there water in this image?"* |
-| **Bounding Box Grounding** | S1 (SAR) + S2 (Optical) | BBox Regressor + Spectral Cluster Mask | *"Highlight the forested area"* |
-| **Scene Captioning** | S1 (SAR) + S2 (Optical) | Vision-Language Decoder + Scene Stats | *"Describe the land cover in this scene"* |
-| **Infrastructure Detection** | S1 (SAR) Radar | Polarimetric Double-Bounce Extraction | *"Are there buildings visible?"* |
-| **Crop & Agricultural Health** | S2 (NIR / Red) | Chlorophyll Vigor Index | *"Locate agricultural fields"* |
-
----
-
-## 🏗️ System Architecture
+## 🏗️ Architecture
 
 ```
-                               ┌───────────────────────────────────────────────────────────┐
-                               │                    SATQUERY AI PORTAL                     │
-                               │   (Landing Page + 3-Panel GIS Operations Workstation)     │
-                               └─────────────────────────────┬─────────────────────────────┘
-                                                             │
-                                ┌────────────────────────────┴────────────────────────────┐
-                                │                                                         │
-                     [Streamlit Entrypoint: app.py]                       [FastAPI Gateway: api.py]
-                     (Direct Streamlit Cloud Deploy)                       (REST API & Headless)
-                                │                                                         │
-                                └────────────────────────────┬────────────────────────────┘
-                                                             │
-                                                             ▼
-                                      ┌─────────────────────────────────────────┐
-                                      │        GEOSPATIAL INGESTION ENGINE      │
-                                      │   - Rasterio GeoTIFF Parser             │
-                                      │   - Metadata Extractor (CRS/Transform)  │
-                                      │   - Multi-spectral (12-Band S2) Loader  │
-                                      │   - SAR Dual-Pol (VV/VH S1) Loader      │
-                                      │   - Percentile Histogram Stretcher      │
-                                      └──────────────────────┬──────────────────┘
-                                                             │
-                                                             ▼
-                                      ┌─────────────────────────────────────────┐
-                                      │        SATQUERY AGENTIC CONTROLLER      │
-                                      │       (src/agents/controller.py)        │
-                                      │   1. Input Validator                    │
-                                      │   2. Query Intent Classifier            │
-                                      │   3. Multi-Specialist Dispatcher        │
-                                      │   4. Execution Tracer                   │
-                                      └──────────────────────┬──────────────────┘
-                                                             │
-                                                             ▼
-                                      ┌─────────────────────────────────────────┐
-                                      │        48.7M PARAMETER PYTORCH VLM      │
-                                      │      (src/models/satquery_model.py)     │
-                                      │   - Vision Transformer (ViT S1+S2)      │
-                                      │   - Text Transformer Query Encoder      │
-                                      │   - Cross-Modal Attention Fusion        │
-                                      │   - Task Heads: Binary, BBox, Caption   │
-                                      └──────────────────────┬──────────────────┘
-                                                             │
-                                                             ▼
-                                      ┌─────────────────────────────────────────┐
-                                      │        EVIDENCE & RESULT SYNTHESIS      │
-                                      │   - Bounding Box Regressor              │
-                                      │   - Grounded Spectral Masks (NDVI/NDWI) │
-                                      │   - Scientific Confidence Estimation    │
-                                      │   - Millisecond Step-by-Step Trace      │
-                                      └──────────────────────┬──────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                 USER INTERFACE (Gradio Web App)                  │
+│          Upload S1/S2 Images + Type NL Question                  │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                 AGENTIC CONTROLLER (Query Router)                │
+│  Step 1: Input Validation → Step 2: Query Classification        │
+│  Step 3: Model Selection → Step 4: Execution → Step 5: Output   │
+└──────────────────────────────┬──────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│            SATQUERY VISION-LANGUAGE MODEL (48.7M params)        │
+│                                                                  │
+│  S2 (12 bands) → Projection ─┐                                  │
+│                                ├→ ViT Encoder (6 layers)         │
+│  S1 (2 bands)  → Projection ─┘         │                        │
+│                                         ▼                        │
+│  Question → Text Encoder (4 layers) → Cross-Modal Fusion        │
+│                                         │                        │
+│                        ┌────────────────┼────────────────┐       │
+│                        ▼                ▼                ▼       │
+│                   Binary VQA         BBox           Captioning   │
+│                   Head               Head           Head         │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
----
+## 📁 Project Structure
 
-## ⚡ Quickstart Guide
+```
+satquery-ai/
+├── app.py                          # Gradio web interface
+├── requirements.txt                # Python dependencies
+├── SatQuery_AI_Colab.ipynb         # Google Colab notebook (complete pipeline)
+├── data/
+│   ├── processed/                  # Annotation data
+│   │   ├── prototype_pairs.csv     # 100 S1/S2 pairs
+│   │   └── prototype_annotations.parquet  # 2,085 Q&A annotations
+│   └── raw/                        # Downloaded GeoTIFF patches
+├── src/
+│   ├── data/
+│   │   ├── download_patches.py     # Streaming tar.zst extractor
+│   │   ├── image_loader.py         # Rasterio S1+S2 loader
+│   │   ├── annotation_loader.py    # Parquet annotation loader
+│   │   └── satquery_dataset.py     # PyTorch Dataset + DataLoader
+│   ├── models/
+│   │   ├── satquery_model.py       # Vision-Language Model (48.7M)
+│   │   └── trainer.py              # Training loop + loss + metrics
+│   └── agents/
+│       └── controller.py           # Agentic query router
+└── start_s2_download.sh            # Background download launcher
+```
 
-### 1. Local Python Environment
+## 🚀 Quick Start
+
+### Option 1: Google Colab (Recommended)
+1. Open [Google Colab](https://colab.research.google.com)
+2. Upload `SatQuery_AI_Colab.ipynb`
+3. Enable GPU: Runtime → Change runtime type → T4 GPU
+4. Run all cells: Runtime → Run all
+5. Gradio app launches with public shareable link
+
+### Option 2: Local Installation
 ```bash
-# Clone the repository
-git clone https://github.com/sarthakarcader-create/satquery-ai.git
+# Clone repository
+git clone https://github.com/YOUR_USERNAME/satquery-ai.git
 cd satquery-ai
 
 # Create virtual environment
@@ -107,41 +93,98 @@ source .venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Run the interactive GIS Workstation
-streamlit run app.py
+# Launch web interface
+python app.py
 ```
 
-### 2. Run Headless REST API Gateway
+### Option 3: Download Real Satellite Data
 ```bash
-python3 api.py
-# API is live at http://localhost:8000
-# Interactive Swagger docs at http://localhost:8000/docs
+# Start downloading Sentinel-2 patches from Zenodo (~63GB archive)
+./start_s2_download.sh
+
+# Monitor progress
+tail -f data/raw/download_s2.log
 ```
 
-### 3. Docker Deployment
-```bash
-docker-compose up --build
-```
+## 🛠️ Technologies Used
+
+| Category | Technology | Purpose |
+|----------|------------|---------|
+| **Language** | Python 3.12 | Core language |
+| **Deep Learning** | PyTorch 2.13 | Model building, training, inference |
+| **Transformers** | PyTorch nn.TransformerEncoder | Vision/Text encoders, Fusion layer |
+| **Geospatial I/O** | Rasterio | Reads GeoTIFF satellite bands |
+| **Data Processing** | Pandas, NumPy | Annotation handling, array operations |
+| **Web Interface** | Gradio 5.x | Interactive web GUI |
+| **Data Storage** | Parquet | Efficient annotation storage |
+| **Archive Streaming** | zstandard + tarfile | Streams Zenodo tar.zst archives |
+
+## 📊 Model Details
+
+- **Total Parameters:** 48.7M
+- **Vision Encoder:** Vision Transformer (ViT) with 6 layers, 8 attention heads
+- **Text Encoder:** Transformer with 4 layers, 8 attention heads
+- **Fusion Layer:** Cross-attention mechanism
+- **Task Heads:** Binary VQA, BBox regression, Autoregressive captioning
+- **Input:** 12-band Sentinel-2 + 2-band Sentinel-1 (14 channels total)
+- **Image Size:** 120×120 pixels (configurable)
+
+## 📈 Training
+
+The model trains on BigEarthNet.txt dataset with:
+- **Optimizer:** AdamW (lr=1e-4, weight_decay=0.01)
+- **Scheduler:** Cosine Annealing
+- **Loss Functions:**
+  - Binary/MCQ VQA: Binary Cross-Entropy
+  - Bounding Box: Smooth L1 Loss
+  - Captioning: Cross-Entropy (next token prediction)
+- **Gradient Clipping:** max_norm=1.0
+
+## 🎓 Datasets
+
+| Dataset | Purpose | Source |
+|---------|---------|--------|
+| BigEarthNet.txt | Primary training data | HuggingFace (BIFOLD-BigEarthNetv2-0) |
+| BigEarthNet-S1 | Sentinel-1 SAR imagery | Zenodo (10891137) |
+| BigEarthNet-S2 | Sentinel-2 optical imagery | Zenodo (10891137) |
+
+## 📝 SIH Problem Statement
+
+SatQuery AI addresses the Smart India Hackathon problem of developing an agentic vision-language assistant for analyzing single and paired remote-sensing images through natural-language queries.
+
+**Key Requirements Met:**
+- ✅ Single-image VQA (mandatory baseline)
+- ✅ Captioning (additional single-image task)
+- ✅ Bounding Box grounding (alternative additional task)
+- ✅ Remote-sensing adaptation via BigEarthNet.txt
+- ✅ Agentic orchestration with execution traces
+- ✅ Interactive GUI (Gradio web interface)
+
+**Planned Extensions:**
+- 🔜 Multi-temporal change detection
+- 🔜 Cross-modal S1+S2 specialized analysis
+- 🔜 Fine-tuning on real satellite imagery
+- 🔜 Evaluation on VRSBench/RSVQA benchmarks
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [BigEarthNet Dataset](https://bigearth.net/) for remote-sensing training data
+- [Zenodo](https://zenodo.org/) for satellite imagery archives
+- [HuggingFace](https://huggingface.co/) for dataset hosting
+- [Sentinel Hub](https://www.sentinel-hub.com/) for satellite data access
 
 ---
 
-## 🎬 3-Minute SIH Presentation Script
-
-1. **The Hook (30 sec)**: Open the live landing page. Present the hero video and explain that remote sensing analysts waste days manually downloading gigabyte-scale GeoTIFFs and running complex band mathematics. SatQuery AI solves this with conversational, multimodal satellite intelligence.
-2. **Launch Portal (30 sec)**: Click **"Launch SatQuery Workstation"**. Show the 3-panel operations workspace (Data Ingestion on left, Interactive Geospatial Canvas in center, Agentic Query Inspector on right).
-3. **1-Click Ingestion (30 sec)**: Click **"Load S2 Optical"** (or **"Load Both"**). Demonstrate real-time metadata extraction (12 bands, `EPSG:32643` UTM projection, 10m GSD spatial resolution). Switch between **Natural Color RGB** and **Color Infrared NIR** to show vegetative vigor.
-4. **Natural Language Query (45 sec)**:
-   - Select query preset: *"Is there water in this image?"*
-   - Click **"Execute Agentic Analysis"**.
-   - Show the sequential progress bar (Validation → Classification → Specialist Routing → PyTorch Inference → Spectral Grounding).
-   - Display the final result: `Yes, water body detected` with **88%+ confidence** and physical **NDWI surface percentage**.
-5. **Localization & Evidence (45 sec)**:
-   - Ask: *"Highlight the forested area"*.
-   - Point to the center viewer: The bounding box and cyan overlay highlight the exact spatial forest canopy in real time.
-   - Expand the **Millisecond Execution Trace** to show jury members the transparent breakdown of latency for each stage.
-
----
-
-## 👥 Team Aarohan
-* Developed for **Smart India Hackathon (SIH)**.
-* Focus Area: Earth Observation, Multimodal Remote Sensing, and Agentic AI.
+**Built for Smart India Hackathon (SIH)**

@@ -1,1188 +1,711 @@
-"""
-SatQuery AI — Unified Remote Sensing Intelligence Portal & GIS Workstation
-==========================================================================
-Smart India Hackathon (SIH) Edition — Team Aarohan
-Dual-Stream Earth Observation VLM + Agentic Controller + Geospatial Engine
-"""
-
 import base64
 import sys
-import os
-import io
-import time
 from pathlib import Path
-from typing import Optional, Dict, Any, Tuple
 import numpy as np
-from PIL import Image
 import streamlit as st
 import torch
-
 # ============================================================
-# Project Path Setup
+# Project Setup
 # ============================================================
-PROJECT_ROOT = Path(__file__).resolve().parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
+PROJECT_ROOT = Path(__file__).parent
+sys.path.insert(0, str(PROJECT_ROOT))
 from src.models.satquery_model import SatQueryModel, SimpleTokenizer
-from src.agents.controller import SatQueryController, TaskType
-from src.utils.geo_processor import (
-    read_raster_file,
-    percentile_stretch,
-    generate_s2_rgb,
-    generate_s2_false_color,
-    generate_s1_composite,
-    render_evidence_overlay,
-    analyze_spectral_evidence,
-)
-
+from src.agents.controller import SatQueryController
+# ============================================================
+# Landing Page State
+# ============================================================
+if "launched" not in st.session_state:
+    st.session_state.launched = False
+def launch():
+    st.session_state.launched = True
+def go_home():
+    st.session_state.launched = False
 # ============================================================
 # Page Configuration
 # ============================================================
 st.set_page_config(
-    page_title="SatQuery AI | Earth Observation Intelligence",
+    page_title="SatQuery AI",
     page_icon="🛰️",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded" if st.session_state.launched else "collapsed",
 )
-
 # ============================================================
-# Persistent Session State
+# Hero Video
 # ============================================================
-if "launched" not in st.session_state:
-    st.session_state.launched = False
-if "query" not in st.session_state:
-    st.session_state.query = "Is there water in this image?"
-if "result" not in st.session_state:
-    st.session_state.result = None
-if "analysis_complete" not in st.session_state:
-    st.session_state.analysis_complete = False
-if "s2_data" not in st.session_state:
-    st.session_state.s2_data = None
-if "s2_meta" not in st.session_state:
-    st.session_state.s2_meta = None
-if "s2_name" not in st.session_state:
-    st.session_state.s2_name = None
-if "s1_data" not in st.session_state:
-    st.session_state.s1_data = None
-if "s1_meta" not in st.session_state:
-    st.session_state.s1_meta = None
-if "s1_name" not in st.session_state:
-    st.session_state.s1_name = None
-if "active_composite" not in st.session_state:
-    st.session_state.active_composite = "rgb"
-if "show_evidence" not in st.session_state:
-    st.session_state.show_evidence = True
-if "show_s2" not in st.session_state:
-    st.session_state.show_s2 = True
-if "show_s1" not in st.session_state:
-    st.session_state.show_s1 = True
-if "opacity_blend" not in st.session_state:
-    st.session_state.opacity_blend = 50
-
-def launch_portal():
-    st.session_state.launched = True
-
-def go_landing():
-    st.session_state.launched = False
-
-def clear_workspace():
-    st.session_state.query = ""
-    st.session_state.result = None
-    st.session_state.analysis_complete = False
-    st.session_state.s2_data = None
-    st.session_state.s2_meta = None
-    st.session_state.s2_name = None
-    st.session_state.s1_data = None
-    st.session_state.s1_meta = None
-    st.session_state.s1_name = None
-
-def load_sample_s2():
-    sample_path = PROJECT_ROOT / "samples" / "sentinel2_sample.tif"
-    if sample_path.exists():
-        raw_bytes = sample_path.read_bytes()
-        data, meta = read_raster_file(raw_bytes)
-        st.session_state.s2_data = data
-        st.session_state.s2_meta = meta
-        st.session_state.s2_name = "Sentinel-2 L2A Sample (12-Band GeoTIFF)"
-
-def load_sample_s1():
-    sample_path = PROJECT_ROOT / "samples" / "sentinel1_sample.tif"
-    if sample_path.exists():
-        raw_bytes = sample_path.read_bytes()
-        data, meta = read_raster_file(raw_bytes)
-        st.session_state.s1_data = data
-        st.session_state.s1_meta = meta
-        st.session_state.s1_name = "Sentinel-1 GRD SAR Sample (VV/VH GeoTIFF)"
-
-def load_sample_both():
-    load_sample_s2()
-    load_sample_s1()
-
+@st.cache_data
+def get_base64(path: str) -> str:
+    video_path = Path(path)
+    if not video_path.is_absolute():
+        video_path = PROJECT_ROOT / video_path
+    if not video_path.exists():
+        raise FileNotFoundError(f"Hero video not found: {video_path}")
+    return base64.b64encode(video_path.read_bytes()).decode()
+HERO_VIDEO = get_base64(str(PROJECT_ROOT / "assets" / "hero.mp4"))
 # ============================================================
-# Model Cache
+# Styling
 # ============================================================
-@st.cache_resource(show_spinner=False)
-def get_cached_system():
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = SatQueryModel(
-        embed_dim=256,
-        num_heads=8,
-        num_vision_layers=4,
-        num_text_layers=3,
-        patch_size=16,
+# Base dark theme — applies on both the landing hero and the tool view.
+st.markdown(
+    """<style>
+    .stApp {
+        background:
+            radial-gradient(circle at 85% 0%, rgba(70, 110, 160, 0.12), transparent 34%),
+            #07111f;
+        color: #e8eef7;
+    }
+    .block-container {
+        max-width: 1500px;
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+    }
+    section[data-testid="stSidebar"] {
+        background: #091522;
+        border-right: 1px solid rgba(255,255,255,0.07);
+    }
+    h1, h2, h3, h4 {
+        color: #f5f8fc !important;
+        letter-spacing: -0.02em;
+    }
+    .stButton > button {
+        border-radius: 10px;
+        font-weight: 650;
+        min-height: 44px;
+    }
+    div[data-testid="stMetric"] {
+        background: #0c1b2c;
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 12px;
+        padding: 15px;
+    }
+    textarea, input {
+        border-radius: 10px !important;
+    }
+    hr {
+        border-color: rgba(255,255,255,0.07);
+    }
+    </style>""",
+    unsafe_allow_html=True,
+)
+if not st.session_state.launched:
+    st.markdown(
+        """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
+/* =========================
+   LANDING PAGE ONLY
+   ========================= */
+[data-testid="stHeader"],
+footer,
+section[data-testid="stSidebar"] {
+    display: none !important;
+}
+.block-container {
+    padding: 0 !important;
+    max-width: 100% !important;
+}
+.stApp {
+    overflow: hidden !important;
+    background: #000 !important;
+}
+/* Remove the normal markdown spacing around our hero */
+div[data-testid="stMarkdown"],
+div[data-testid="stMarkdownContainer"],
+div[data-testid="stMarkdownContainer"] > div {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+}
+/* The video already contains the Earth + satellite visual.
+   We only provide the positioning layer for the SVG text/button. */
+.hero {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+}
+/* Background video */
+.hero-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center center;
+    z-index: 0;
+}
+/* Very subtle readability layer */
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(
+        90deg,
+        rgba(0, 0, 20, 0.18) 0%,
+        rgba(0, 0, 20, 0.00) 42%,
+        rgba(0, 0, 0, 0.18) 100%
+    );
+}
+/* =========================
+   MAIN HEADING
+   ========================= */
+.hero-title {
+    position: absolute;
+    z-index: 3;
+    top: 5.1vh;
+    left: 18.8vw;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
+    font-size: clamp(3.5rem, 6.9vw, 6.7rem) !important;
+    font-weight: 400 !important;
+    font-style: normal !important;
+    line-height: 0.92 !important;
+    letter-spacing: 0.02em !important;
+    word-spacing: 0.04em !important;
+    color: #ffffff !important;
+    white-space: nowrap;
+    text-shadow: 2px 4px 14px rgba(0, 0, 0, 0.38);
+}
+/* =========================
+   RIGHT-HAND MESSAGE
+   ========================= */
+.hero-message {
+    position: absolute;
+    z-index: 3;
+    left: 66.5vw;
+    top: 42.5vh;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
+    font-size: clamp(2.9rem, 5.15vw, 5.35rem) !important;
+    font-weight: 400 !important;
+    font-style: normal !important;
+    line-height: 1.06 !important;
+    letter-spacing: 0.01em !important;
+    word-spacing: 0 !important;
+    color: #ffffff !important;
+    text-align: left;
+    white-space: nowrap;
+    text-shadow: 2px 4px 14px rgba(0, 0, 0, 0.38);
+}
+/* =========================
+   LAUNCH BUTTON
+   ========================= */
+/* Native Streamlit button is used so the existing launch()
+   state transition remains reliable. */
+div[data-testid="stButton"] {
+    position: fixed !important;
+    left: 69.5vw !important;
+    top: 77.6vh !important;
+    width: 196px !important;
+    height: 52px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 20 !important;
+}
+div[data-testid="stButton"] > button {
+    position: relative !important;
+    width: 196px !important;
+    min-width: 196px !important;
+    height: 52px !important;
+    min-height: 52px !important;
+    margin: 0 !important;
+    padding: 0 48px 0 22px !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    background: #ffffff !important;
+    color: #5d78ff !important;
+    font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
+    font-size: 1.52rem !important;
+    font-weight: 400 !important;
+    font-style: italic !important;
+    line-height: 52px !important;
+    letter-spacing: 0.02em !important;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    transition: transform 0.18s ease, box-shadow 0.18s ease !important;
+}
+div[data-testid="stButton"] > button p {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
+    font-style: italic !important;
+    font-size: 1.52rem !important;
+    line-height: 1 !important;
+    color: #5d78ff !important;
+}
+/* Circular blue play icon */
+div[data-testid="stButton"] > button::after {
+    content: '▶';
+    position: absolute;
+    right: 6px;
+    top: 6px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #5d78ff;
+    color: #ffffff;
+    font-family: Arial, sans-serif !important;
+    font-size: 14px !important;
+    font-style: normal !important;
+    line-height: 1 !important;
+}
+div[data-testid="stButton"] > button:hover {
+    background: #ffffff !important;
+    color: #526fff !important;
+    transform: scale(1.04) !important;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22) !important;
+}
+div[data-testid="stButton"] > button:hover p {
+    color: #526fff !important;
+}
+div[data-testid="stButton"] > button:focus,
+div[data-testid="stButton"] > button:focus-visible {
+    background: #ffffff !important;
+    color: #5d78ff !important;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18) !important;
+}
+/* =========================
+   RESPONSIVE
+   ========================= */
+@media (max-width: 1100px) {
+    .hero-title {
+        top: 5.2vh;
+        left: 21vw;
+        font-size: clamp(3rem, 7.4vw, 5.4rem) !important;
+    }
+    .hero-message {
+        left: 66vw;
+        top: 44vh;
+        font-size: clamp(2.35rem, 5vw, 4.1rem) !important;
+        line-height: 1.06 !important;
+    }
+    div[data-testid="stButton"] {
+        left: 66vw !important;
+        top: 77vh !important;
+        width: 176px !important;
+        height: 48px !important;
+    }
+    div[data-testid="stButton"] > button {
+        width: 176px !important;
+        min-width: 176px !important;
+        height: 48px !important;
+        min-height: 48px !important;
+        padding: 0 44px 0 18px !important;
+        font-size: 1.38rem !important;
+        line-height: 48px !important;
+    }
+    div[data-testid="stButton"] > button p {
+        font-size: 1.38rem !important;
+    }
+    div[data-testid="stButton"] > button::after {
+        width: 36px;
+        height: 36px;
+        top: 6px;
+        right: 6px;
+        font-size: 13px !important;
+    }
+}
+@media (max-width: 700px) {
+    .hero-title {
+        top: 18vh;
+        left: 6vw;
+        font-size: clamp(2.5rem, 12vw, 4.4rem) !important;
+    }
+    .hero-message {
+        left: 6vw;
+        top: 52vh;
+        font-size: clamp(2.1rem, 9.5vw, 3.3rem) !important;
+        line-height: 1.05 !important;
+        white-space: normal;
+    }
+    div[data-testid="stButton"] {
+        left: 6vw !important;
+        top: auto !important;
+        bottom: 5vh !important;
+    }
+}
+</style>
+        """,
+        unsafe_allow_html=True,
     )
+# ============================================================
+# Landing / Hero View
+# ============================================================
+if not st.session_state.launched:
+    # IMPORTANT: HTML is deliberately kept as one continuous line.
+    # This prevents Streamlit Markdown from treating indented HTML as code.
+    st.markdown(
+        f"""<div class="hero"><video class="hero-video" autoplay muted loop playsinline preload="auto"><source src="data:video/mp4;base64,{HERO_VIDEO}" type="video/mp4"></video><div class="hero-overlay"></div><h1 class="hero-title">SAT QUERY AI</h1><div class="hero-message">Satellite Image<br>Queries<br>Simplified...</div></div>""",
+        unsafe_allow_html=True,
+    )
+    st.button(
+        "Launch",
+        key="launch_btn",
+        on_click=launch,
+    )
+    st.stop()
+# ============================================================
+# Helpers
+# ============================================================
+def format_bytes(size: int) -> str:
+    if size < 1024:
+        return f"{size} B"
+    if size < 1024**2:
+        return f"{size / 1024:.1f} KB"
+    if size < 1024**3:
+        return f"{size / 1024**2:.1f} MB"
+    return f"{size / 1024**3:.2f} GB"
+def read_uploaded_raster(uploaded_file):
+    """Read a GeoTIFF/raster into C,H,W format using rasterio."""
+    if uploaded_file is None:
+        return None
+    try:
+        import rasterio
+        data = uploaded_file.getvalue()
+        with rasterio.MemoryFile(data) as memfile:
+            with memfile.open() as dataset:
+                return dataset.read()
+    except Exception:
+        return None
+def uploaded_file_to_numpy(uploaded_file):
+    """Read PNG/JPG-style uploads into a numpy array."""
+    if uploaded_file is None:
+        return None
+    try:
+        from PIL import Image
+        uploaded_file.seek(0)
+        return np.array(Image.open(uploaded_file))
+    except Exception:
+        return None
+def image_to_tensor(image, bands: int):
+    """Convert H,W,C or H,W image data into C,H,W tensor."""
+    if image is None:
+        return None
+    img = np.asarray(image)
+    if img.ndim == 3 and img.shape[-1] == 4:
+        img = img[:, :, :3]
+    if img.ndim == 2:
+        img = np.stack([img] * bands, axis=-1)
+    elif img.ndim == 3:
+        channels = img.shape[-1]
+        if channels < bands:
+            repeats = int(np.ceil(bands / channels))
+            img = np.concatenate([img] * repeats, axis=-1)
+        img = img[:, :, :bands]
+    else:
+        return None
+    img = img.astype(np.float32)
+    max_value = np.nanmax(img) if img.size else 1.0
+    if max_value > 1.0 and max_value <= 255.0:
+        img /= 255.0
+    img = np.nan_to_num(img)
+    return torch.from_numpy(img.transpose(2, 0, 1)).float()
+def raster_to_model_tensor(raster, bands: int):
+    """Convert rasterio C,H,W output into the model tensor format."""
+    if raster is None:
+        return None
+    raster = np.asarray(raster).astype(np.float32)
+    if raster.ndim == 2:
+        raster = raster[np.newaxis, :, :]
+    channels = raster.shape[0]
+    if channels < bands:
+        repeats = int(np.ceil(bands / channels))
+        raster = np.concatenate([raster] * repeats, axis=0)
+    raster = raster[:bands]
+    raster = np.nan_to_num(raster)
+    max_value = np.nanmax(raster) if raster.size else 1.0
+    if max_value > 1.0:
+        if max_value <= 255.0:
+            raster /= 255.0
+        else:
+            minimum = np.nanmin(raster)
+            maximum = np.nanmax(raster)
+            if maximum > minimum:
+                raster = (raster - minimum) / (maximum - minimum)
+    return torch.from_numpy(raster).float()
+def create_preview(raster):
+    """Create a display-friendly RGB preview from a raster."""
+    if raster is None:
+        return None
+    arr = np.asarray(raster)
+    if arr.ndim == 3:
+        if arr.shape[0] >= 3:
+            rgb = arr[:3].transpose(1, 2, 0)
+        elif arr.shape[-1] >= 3:
+            rgb = arr[:, :, :3]
+        else:
+            rgb = arr[0]
+    else:
+        rgb = arr
+    rgb = np.nan_to_num(rgb).astype(np.float32)
+    minimum = np.percentile(rgb, 2)
+    maximum = np.percentile(rgb, 98)
+    if maximum > minimum:
+        rgb = np.clip((rgb - minimum) / (maximum - minimum), 0, 1)
+    if rgb.ndim == 2:
+        rgb = np.stack([rgb] * 3, axis=-1)
+    return (rgb * 255).astype(np.uint8)
+# ============================================================
+# Model Initialization
+# ============================================================
+@st.cache_resource(show_spinner="Loading SatQuery AI model...")
+def initialize_model():
+    model = SatQueryModel()
     tokenizer = SimpleTokenizer()
     controller = SatQueryController(
         model=model,
         tokenizer=tokenizer,
-        device=device,
     )
-    return model, tokenizer, controller, device
-
+    return model, tokenizer, controller
 # ============================================================
-# Hero Video Base64 Cache
+# Session State
 # ============================================================
-@st.cache_data
-def get_hero_video_b64() -> Optional[str]:
-    video_path = PROJECT_ROOT / "assets" / "hero.mp4"
-    if video_path.exists():
-        return base64.b64encode(video_path.read_bytes()).decode()
-    return None
-
-HERO_VIDEO_B64 = get_hero_video_b64()
-
+if "query" not in st.session_state:
+    st.session_state.query = ""
+if "result" not in st.session_state:
+    st.session_state.result = None
+if "analysis_complete" not in st.session_state:
+    st.session_state.analysis_complete = False
 # ============================================================
-# Global Styling
+# Header - NATIVE STREAMLIT ONLY
 # ============================================================
+header_l, header_r = st.columns([6, 1])
+with header_l:
+    st.markdown("### 🛰️ SATQUERY AI")
+with header_r:
+    st.button("← Home", on_click=go_home)
+st.title("Ask questions about Earth.")
 st.markdown(
-    """
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
-    
-    :root {
-        --bg-main: #060B16;
-        --bg-panel: #0A1224;
-        --bg-card: #0E1B35;
-        --border-subtle: #1A263E;
-        --border-active: #2C3E66;
-        --isro-orange: #F37021;
-        --isro-blue: #38BDF8;
-        --text-bright: #F8FAFC;
-        --text-muted: #94A3B8;
-        --status-green: #10B981;
-    }
-    
-    .stApp {
-        background-color: var(--bg-main);
-        color: var(--text-bright);
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
-    
-    /* Top Header Bar */
-    header[data-testid="stHeader"] {
-        display: none !important;
-    }
-    
-    footer {
-        display: none !important;
-    }
-    
-    .block-container {
-        max-width: 100% !important;
-        padding-top: 1rem !important;
-        padding-bottom: 2rem !important;
-        padding-left: 2rem !important;
-        padding-right: 2rem !important;
-    }
-    
-    /* Sleek buttons */
-    .stButton > button {
-        border-radius: 8px !important;
-        font-family: 'Inter', sans-serif !important;
-        font-weight: 600 !important;
-        letter-spacing: 0.02em !important;
-        transition: all 0.18s ease !important;
-        border: 1px solid var(--border-subtle) !important;
-        background: #0F1D38 !important;
-        color: #E2E8F0 !important;
-    }
-    
-    .stButton > button:hover {
-        border-color: var(--isro-orange) !important;
-        color: #FFFFFF !important;
-        box-shadow: 0 4px 14px rgba(243, 112, 33, 0.2) !important;
-        transform: translateY(-1px) !important;
-    }
-    
-    /* Primary buttons */
-    button[kind="primary"] {
-        background: linear-gradient(135deg, #F37021 0%, #D9580D 100%) !important;
-        color: #FFFFFF !important;
-        border: none !important;
-        box-shadow: 0 4px 18px rgba(243, 112, 33, 0.35) !important;
-    }
-    button[kind="primary"]:hover {
-        box-shadow: 0 6px 24px rgba(243, 112, 33, 0.5) !important;
-    }
-    
-    /* Input elements */
-    textarea, input, select {
-        background-color: #081020 !important;
-        border: 1px solid var(--border-subtle) !important;
-        color: #F8FAFC !important;
-        border-radius: 8px !important;
-        font-family: 'Inter', sans-serif !important;
-    }
-    textarea:focus, input:focus {
-        border-color: var(--isro-orange) !important;
-        box-shadow: 0 0 0 1px var(--isro-orange) !important;
-    }
-    
-    /* GIS Workstation Cards */
-    .gis-card {
-        background: var(--bg-panel);
-        border: 1px solid var(--border-subtle);
-        border-radius: 10px;
-        padding: 16px;
-        margin-bottom: 16px;
-    }
-    
-    .gis-card-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 12px;
-        border-bottom: 1px solid rgba(255,255,255,0.06);
-        padding-bottom: 8px;
-    }
-    
-    .gis-card-title {
-        font-size: 0.85rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #CBD5E1;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    
-    .status-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.72rem;
-        padding: 3px 8px;
-        border-radius: 999px;
-    }
-    .status-active {
-        background: rgba(16, 185, 129, 0.12);
-        color: #10B981;
-        border: 1px solid rgba(16, 185, 129, 0.3);
-    }
-    .status-info {
-        background: rgba(56, 189, 248, 0.12);
-        color: #38BDF8;
-        border: 1px solid rgba(56, 189, 248, 0.3);
-    }
-    .status-orange {
-        background: rgba(243, 112, 33, 0.12);
-        color: #F37021;
-        border: 1px solid rgba(243, 112, 33, 0.3);
-    }
-    
-    /* Code & metadata */
-    .code-tag {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.78rem;
-        background: #050B14;
-        border: 1px solid #16243D;
-        padding: 2px 6px;
-        border-radius: 4px;
-        color: #94A3B8;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
+    "Analyze Sentinel-1 SAR and Sentinel-2 optical imagery using "
+    "natural-language queries and an evidence-grounded satellite "
+    "intelligence pipeline."
 )
-
-
+st.divider()
 # ============================================================
-# VIEW 1: LANDING PAGE
+# Sidebar
 # ============================================================
-if not st.session_state.launched:
-    # Landing page scoped CSS
-    st.markdown(
-        """
-        <style>
-        .block-container {
-            padding: 0 !important;
-            max-width: 100% !important;
-        }
-        .hero-container {
-            position: relative;
-            width: 100vw;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            background: #020610;
-            overflow: hidden;
-        }
-        .hero-video-bg {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: center center;
-            opacity: 0.85;
-            z-index: 0;
-        }
-        .hero-scrim {
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(circle at 60% 40%, rgba(2, 6, 16, 0.1) 0%, rgba(2, 6, 16, 0.75) 70%, #020610 100%);
-            z-index: 1;
-        }
-        .hero-content {
-            position: relative;
-            z-index: 5;
-            padding: 4rem 6vw 2rem 6vw;
-            max-width: 1200px;
-        }
-        .hero-brand {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            letter-spacing: 0.12em;
-            color: #F37021;
-            background: rgba(243, 112, 33, 0.12);
-            border: 1px solid rgba(243, 112, 33, 0.35);
-            padding: 6px 14px;
-            border-radius: 999px;
-            margin-bottom: 1.5rem;
-        }
-        .hero-title {
-            font-family: 'Anton', Impact, sans-serif !important;
-            font-size: clamp(3.5rem, 8vw, 7.5rem) !important;
-            line-height: 0.95 !important;
-            letter-spacing: 0.02em !important;
-            color: #FFFFFF !important;
-            text-transform: uppercase;
-            margin: 0 0 1.5rem 0 !important;
-            text-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
-        }
-        .hero-subtitle {
-            font-size: clamp(1.1rem, 2vw, 1.45rem);
-            line-height: 1.5;
-            color: #CBD5E1;
-            max-width: 680px;
-            margin-bottom: 2.5rem;
-            text-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
-        }
-        .landing-section {
-            background: #050B17;
-            border-top: 1px solid var(--border-subtle);
-            padding: 5rem 6vw;
-        }
-        .section-header {
-            margin-bottom: 3.5rem;
-        }
-        .section-tag {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.78rem;
-            text-transform: uppercase;
-            letter-spacing: 0.15em;
-            color: #38BDF8;
-            margin-bottom: 0.6rem;
-        }
-        .section-title {
-            font-size: clamp(2rem, 3.5vw, 2.8rem);
-            font-weight: 700;
-            color: #F8FAFC;
-            letter-spacing: -0.02em;
-        }
-        .pipeline-card {
-            background: #091326;
-            border: 1px solid #192742;
-            border-radius: 12px;
-            padding: 24px;
-            height: 100%;
-            transition: transform 0.2s ease, border-color 0.2s ease;
-        }
-        .pipeline-card:hover {
-            border-color: #F37021;
-            transform: translateY(-4px);
-        }
-        .pipeline-num {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #F37021;
-            margin-bottom: 12px;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Hero Banner
-    video_html = (
-        f'<video class="hero-video-bg" autoplay muted loop playsinline preload="auto">'
-        f'<source src="data:video/mp4;base64,{HERO_VIDEO_B64}" type="video/mp4">'
-        f'</video>'
-        if HERO_VIDEO_B64
-        else ""
-    )
-
-    st.markdown(
-        f"""
-        <div class="hero-container">
-            {video_html}
-            <div class="hero-scrim"></div>
-            <div class="hero-content">
-                <div class="hero-brand">
-                    <span>🛰️</span>
-                    <span>SMART INDIA HACKATHON 2026 · TEAM AAROHAN</span>
-                </div>
-                <h1 class="hero-title">SATQUERY AI</h1>
-                <p class="hero-subtitle">
-                    Ask questions about Earth. Analyze Sentinel-1 SAR radar and Sentinel-2 optical imagery 
-                    using natural-language queries and an evidence-grounded satellite intelligence pipeline.
-                </p>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Hero Action Bar
-    btn_col1, btn_col2, _ = st.columns([1.3, 1.3, 4])
-    with btn_col1:
-        st.button(
-            "🚀 Launch SatQuery Workstation",
-            type="primary",
-            use_container_width=True,
-            on_click=launch_portal,
-        )
-    with btn_col2:
-        if st.button("⚡ Quick Test with Sample Scene", use_container_width=True):
-            load_sample_s2()
-            launch_portal()
-            st.rerun()
-
-    # Section 1: What is SatQuery AI?
-    st.markdown(
-        """
-        <div class="landing-section">
-            <div class="section-header">
-                <div class="section-tag">Overview & Problem Statement</div>
-                <h2 class="section-title">Bridging Natural Language & Earth Observation</h2>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    c1, c2, c3 = st.columns(3, gap="large")
-    with c1:
-        st.markdown(
-            """
-            <div class="pipeline-card">
-                <div class="pipeline-num">01</div>
-                <h3 style="color:#F1F5F9; font-size:1.15rem; margin-bottom:8px;">The Problem</h3>
-                <p style="color:#94A3B8; font-size:0.92rem; line-height:1.6;">
-                    Satellite rasters contain massive amounts of multispectral and radar information, 
-                    traditionally locked behind complex GIS desktop suites, manual band-math scripts, and remote sensing jargon.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with c2:
-        st.markdown(
-            """
-            <div class="pipeline-card">
-                <div class="pipeline-num">02</div>
-                <h3 style="color:#F1F5F9; font-size:1.15rem; margin-bottom:8px;">The Agentic Solution</h3>
-                <p style="color:#94A3B8; font-size:0.92rem; line-height:1.6;">
-                    SatQuery AI allows users to inspect satellite scenes using plain conversational questions. 
-                    An autonomous controller routes queries to specialized neural vision heads and remote sensing verification modules.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with c3:
-        st.markdown(
-            """
-            <div class="pipeline-card">
-                <div class="pipeline-num">03</div>
-                <h3 style="color:#F1F5F9; font-size:1.15rem; margin-bottom:8px;">Evidence-Grounded</h3>
-                <p style="color:#94A3B8; font-size:0.92rem; line-height:1.6;">
-                    Unlike generic chatbot wrappers, every prediction is paired with physical spectral indices (NDWI for water, NDVI for vegetation, SAR backscatter) 
-                    and bounding box coordinates for verifiable outputs.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    # Section 2: How it Works (Visual Pipeline)
-    st.markdown(
-        """
-        <div class="landing-section" style="background:#030813;">
-            <div class="section-header">
-                <div class="section-tag">Architecture Pipeline</div>
-                <h2 class="section-title">How SatQuery AI Processes Satellite Imagery</h2>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    p1, p2, p3, p4 = st.columns(4, gap="medium")
-    with p1:
-        st.markdown(
-            """
-            <div class="pipeline-card">
-                <div style="font-family:'JetBrains Mono',monospace; color:#38BDF8; font-size:0.8rem; margin-bottom:8px;">STEP 01</div>
-                <h4 style="color:#F8FAFC; margin-bottom:6px;">Multi-Band Ingestion</h4>
-                <p style="color:#94A3B8; font-size:0.86rem;">
-                    Reads raw GeoTIFF rasters using Rasterio. Preserves spatial CRS, coordinates, and 12-bit spectral bands.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with p2:
-        st.markdown(
-            """
-            <div class="pipeline-card">
-                <div style="font-family:'JetBrains Mono',monospace; color:#38BDF8; font-size:0.8rem; margin-bottom:8px;">STEP 02</div>
-                <h4 style="color:#F8FAFC; margin-bottom:6px;">Agentic Controller</h4>
-                <p style="color:#94A3B8; font-size:0.86rem;">
-                    Validates inputs, classifies query intent (Binary VQA, Grounding, Captioning), and selects the appropriate specialist head.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with p3:
-        st.markdown(
-            """
-            <div class="pipeline-card">
-                <div style="font-family:'JetBrains Mono',monospace; color:#38BDF8; font-size:0.8rem; margin-bottom:8px;">STEP 03</div>
-                <h4 style="color:#F8FAFC; margin-bottom:6px;">48.7M PyTorch VLM</h4>
-                <p style="color:#94A3B8; font-size:0.86rem;">
-                    Dual-stream Vision Transformer projects Optical + SAR features, fused via cross-attention with the tokenized question.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with p4:
-        st.markdown(
-            """
-            <div class="pipeline-card">
-                <div style="font-family:'JetBrains Mono',monospace; color:#38BDF8; font-size:0.8rem; margin-bottom:8px;">STEP 04</div>
-                <h4 style="color:#F8FAFC; margin-bottom:6px;">Evidence Synthesis</h4>
-                <p style="color:#94A3B8; font-size:0.86rem;">
-                    Combines neural predictions with physical spectral indices (NDWI, NDVI, SAR dB) to render bounding boxes and audit traces.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    # Section 3: Supported Sensors
-    st.markdown(
-        """
-        <div class="landing-section">
-            <div class="section-header">
-                <div class="section-tag">Sensor Capabilities</div>
-                <h2 class="section-title">Dual-Stream Satellite Modalities</h2>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    s_col1, s_col2 = st.columns(2, gap="large")
-    with s_col1:
-        st.markdown(
-            """
-            <div class="pipeline-card" style="border-left: 4px solid #38BDF8;">
-                <h3 style="color:#38BDF8; margin-bottom:6px;">Sentinel-2 · Optical Multispectral</h3>
-                <p style="color:#CBD5E1; font-size:0.92rem; margin-bottom:12px;">
-                    Operates in 13 spectral channels (Visible, Red-Edge, NIR, SWIR).
-                </p>
-                <ul style="color:#94A3B8; font-size:0.88rem; line-height:1.7; padding-left:1.2rem;">
-                    <li><strong>B02, B03, B04:</strong> True-Color RGB natural scene display.</li>
-                    <li><strong>B08 (NIR):</strong> High reflectance over chlorophyll; essential for NDVI vegetation vigor.</li>
-                    <li><strong>B11, B12 (SWIR):</strong> Soil moisture, burn severity, and cloud penetration.</li>
-                    <li><strong>Best For:</strong> Crop health, forestry monitoring, water body delineation.</li>
-                </ul>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with s_col2:
-        st.markdown(
-            """
-            <div class="pipeline-card" style="border-left: 4px solid #F37021;">
-                <h3 style="color:#F37021; margin-bottom:6px;">Sentinel-1 · Synthetic Aperture Radar (SAR)</h3>
-                <p style="color:#CBD5E1; font-size:0.92rem; margin-bottom:12px;">
-                    C-band active radar (VV & VH polarizations), independent of weather or daylight.
-                </p>
-                <ul style="color:#94A3B8; font-size:0.88rem; line-height:1.7; padding-left:1.2rem;">
-                    <li><strong>VV (Co-polarization):</strong> Measures surface scattering and water specular reflection.</li>
-                    <li><strong>VH (Cross-polarization):</strong> Volume scattering from forest canopy & rough terrain.</li>
-                    <li><strong>Double Bounce:</strong> Urban buildings & vertical infrastructure stand out distinctly.</li>
-                    <li><strong>Best For:</strong> Flood inundation mapping through cloud cover, night imaging, terrain structure.</li>
-                </ul>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    # Launch Bottom Banner
-    st.markdown(
-        """
-        <div style="text-align:center; padding: 5rem 2rem; background: #020610; border-top: 1px solid #16243D;">
-            <h2 style="color:#F8FAFC; font-size:2.2rem; margin-bottom:1rem;">Ready to inspect Earth observation imagery?</h2>
-            <p style="color:#94A3B8; max-width:600px; margin:0 auto 2rem auto;">
-                Launch the interactive GIS Workstation to upload your own GeoTIFF rasters or analyze our pre-packaged Sentinel-1/2 validation scenes.
-            </p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    b_l, b_c, b_r = st.columns([2.5, 2, 2.5])
-    with b_c:
-        st.button(
-            "Launch SatQuery Workstation →",
-            type="primary",
-            use_container_width=True,
-            on_click=launch_portal,
-        )
-
-    st.markdown(
-        """
-        <div style="text-align:center; padding: 2rem; color:#64748B; font-size:0.8rem; border-top:1px solid #0F172A;">
-            SatQuery AI · Autonomous Earth Observation Assistant · Team Aarohan · Smart India Hackathon
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.stop()
-
-
-# ============================================================
-# VIEW 2: PRODUCTION GIS WORKSTATION PORTAL
-# ============================================================
-
-# Top Navigation Bar
-nav_l, nav_c, nav_r = st.columns([4, 4, 3], gap="medium")
-with nav_l:
-    st.markdown(
-        """
-        <div style="display:flex; align-items:center; gap:12px;">
-            <div style="background:#0F1D38; border:1px solid #F37021; width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px;">
-                🛰️
-            </div>
-            <div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-weight:800; font-size:1.15rem; color:#FFFFFF; letter-spacing:0.04em;">SATQUERY AI</span>
-                    <span class="status-pill status-orange" style="font-size:0.65rem;">ISRO / SIH 2026</span>
-                </div>
-                <div style="font-size:0.75rem; color:#94A3B8;">Autonomous Multimodal Earth Observation Assistant</div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-with nav_c:
-    st.markdown(
-        """
-        <div style="display:flex; align-items:center; justify-content:center; gap:10px; height:100%;">
-            <span class="status-pill status-active">● Sovereign Enclave: Online</span>
-            <span class="status-pill status-info">Air-Gapped Ready</span>
-            <span class="status-pill status-orange">48.7M VLM</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-with nav_r:
-    btn_r1, btn_r2 = st.columns(2)
-    with btn_r1:
-        if st.button("↺ Reset", use_container_width=True):
-            clear_workspace()
-            st.rerun()
-    with btn_r2:
-        st.button("← Home", use_container_width=True, on_click=go_landing)
-
-st.markdown("<hr style='border-color:#16243D; margin: 12px 0 20px 0;'>", unsafe_allow_html=True)
-
-# Main 3-Column Workstation Layout
-# Left: Ingestion & Metadata (3.2)
-# Center: Geospatial Viewer (4.8)
-# Right: Query & Results (4.0)
-col_left, col_center, col_right = st.columns([3.3, 4.7, 4.0], gap="large")
-
-# ============================================================
-# LEFT COLUMN: Data Ingestion, Sensors & Metadata
-# ============================================================
-with col_left:
-    st.markdown(
-        """
-        <div class="gis-card-header">
-            <span class="gis-card-title">📁 1. Sensor Data Ingestion</span>
-            <span class="status-pill status-info">GeoTIFF / PNG</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # 1-Click Sample Scene Loaders (SIH Pitch Goldmine!)
-    st.markdown("<div style='font-size:0.8rem; font-weight:600; color:#CBD5E1; margin-bottom:6px;'>⚡ 1-Click SIH Validation Scenes</div>", unsafe_allow_html=True)
-    sample_col1, sample_col2, sample_col3 = st.columns(3)
-    with sample_col1:
-        if st.button("Load S2 Optical", use_container_width=True):
-            load_sample_s2()
-            st.toast("Loaded 12-Band Sentinel-2 GeoTIFF Scene")
-            st.rerun()
-    with sample_col2:
-        if st.button("Load S1 SAR", use_container_width=True):
-            load_sample_s1()
-            st.toast("Loaded Dual-Pol Sentinel-1 SAR Scene")
-            st.rerun()
-    with sample_col3:
-        if st.button("Load Both", use_container_width=True):
-            load_sample_both()
-            st.toast("Loaded S1 + S2 Co-registered Scene Pair")
-            st.rerun()
-
-    st.markdown("<div style='margin-top:14px;'></div>", unsafe_allow_html=True)
-
-    # Sentinel-2 Uploader
+with st.sidebar:
+    st.markdown("## 🛰️ SatQuery AI")
+    st.caption("Satellite intelligence workspace")
+    st.divider()
+    st.markdown("### Data Sources")
     s2_file = st.file_uploader(
-        "Upload Sentinel-2 Optical (GeoTIFF / PNG / JPG)",
+        "Sentinel-2 · Optical",
         type=["tif", "tiff", "png", "jpg", "jpeg"],
-        key="s2_uploader",
+        key="s2_upload",
+        help="Upload a Sentinel-2 optical image or GeoTIFF.",
     )
-    if s2_file is not None and s2_file.name != st.session_state.s2_name:
-        raw_bytes = s2_file.read()
-        data, meta = read_raster_file(raw_bytes)
-        st.session_state.s2_data = data
-        st.session_state.s2_meta = meta
-        st.session_state.s2_name = s2_file.name
-
-    # Sentinel-1 Uploader
     s1_file = st.file_uploader(
-        "Upload Sentinel-1 SAR (GeoTIFF / PNG / JPG)",
+        "Sentinel-1 · SAR",
         type=["tif", "tiff", "png", "jpg", "jpeg"],
-        key="s1_uploader",
+        key="s1_upload",
+        help="Upload a Sentinel-1 SAR image or GeoTIFF.",
     )
-    if s1_file is not None and s1_file.name != st.session_state.s1_name:
-        raw_bytes = s1_file.read()
-        data, meta = read_raster_file(raw_bytes)
-        st.session_state.s1_data = data
-        st.session_state.s1_meta = meta
-        st.session_state.s1_name = s1_file.name
-
-    # Active Imagery Status Card
-    st.markdown(
-        """
-        <div class="gis-card-header" style="margin-top:18px;">
-            <span class="gis-card-title">📊 Raster Metadata Inspector</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if st.session_state.s2_data is not None or st.session_state.s1_data is not None:
-        if st.session_state.s2_data is not None:
-            m = st.session_state.s2_meta or {}
-            st.markdown(
-                f"""
-                <div class="gis-card" style="padding:10px; font-size:0.82rem; margin-bottom:10px;">
-                    <div style="font-weight:700; color:#38BDF8; margin-bottom:4px;">🟢 Sentinel-2 Optical</div>
-                    <div style="color:#CBD5E1; margin-bottom:4px; word-break:break-all;">{st.session_state.s2_name}</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; font-size:0.75rem; color:#94A3B8;">
-                        <div>Dimensions: <span class="code-tag">{m.get('width', 0)} × {m.get('height', 0)}</span></div>
-                        <div>Bands: <span class="code-tag">{m.get('count', 0)} Channels</span></div>
-                        <div>CRS: <span class="code-tag">{m.get('crs', 'Local Frame')[:16]}</span></div>
-                        <div>Format: <span class="code-tag">{m.get('driver', 'Raster')}</span></div>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-        if st.session_state.s1_data is not None:
-            m = st.session_state.s1_meta or {}
-            st.markdown(
-                f"""
-                <div class="gis-card" style="padding:10px; font-size:0.82rem; margin-bottom:10px;">
-                    <div style="font-weight:700; color:#F37021; margin-bottom:4px;">🔵 Sentinel-1 SAR</div>
-                    <div style="color:#CBD5E1; margin-bottom:4px; word-break:break-all;">{st.session_state.s1_name}</div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; font-size:0.75rem; color:#94A3B8;">
-                        <div>Dimensions: <span class="code-tag">{m.get('width', 0)} × {m.get('height', 0)}</span></div>
-                        <div>Bands: <span class="code-tag">{m.get('count', 0)} Polarizations</span></div>
-                        <div>CRS: <span class="code-tag">{m.get('crs', 'Local Frame')[:16]}</span></div>
-                        <div>Format: <span class="code-tag">{m.get('driver', 'Raster')}</span></div>
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-    else:
-        st.info("No raster uploaded. Click 'Load S2 Optical' or 'Load S1 SAR' above to begin.")
-
-    # Layer & Opacity Controls
-    st.markdown(
-        """
-        <div class="gis-card-header" style="margin-top:14px;">
-            <span class="gis-card-title">🎛️ Layer & Sensor Controls</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.session_state.show_s2 = st.checkbox("Show Sentinel-2 Optical", value=st.session_state.show_s2)
-    st.session_state.show_s1 = st.checkbox("Show Sentinel-1 SAR", value=st.session_state.show_s1)
-    st.session_state.show_evidence = st.checkbox("Show Visual Evidence / Bounding Box", value=st.session_state.show_evidence)
-
-    if st.session_state.s2_data is not None and st.session_state.s1_data is not None:
-        st.session_state.opacity_blend = st.slider(
-            "Optical ⟷ SAR Opacity Crossfade",
-            min_value=0,
-            max_value=100,
-            value=st.session_state.opacity_blend,
-            help="0% = Pure Sentinel-2 Optical, 100% = Pure Sentinel-1 SAR",
-        )
-
-    st.session_state.active_composite = st.radio(
-        "Multispectral Composite",
-        options=["Natural Color RGB (B4-B3-B2)", "False Color NIR (B8-B4-B3)"],
-        index=0 if st.session_state.active_composite == "rgb" else 1,
-    )
-
-
+    st.divider()
+    st.markdown("### Viewer")
+    show_optical = st.checkbox("Show optical imagery", value=True)
+    show_sar = st.checkbox("Show SAR imagery", value=True)
+    st.divider()
+    if st.button("Clear workspace", use_container_width=True):
+        st.session_state.query = ""
+        st.session_state.result = None
+        st.session_state.analysis_complete = False
+        st.rerun()
 # ============================================================
-# CENTER COLUMN: High-Precision Geospatial Viewer
+# Main Input Area
 # ============================================================
-with col_center:
-    st.markdown(
-        """
-        <div class="gis-card-header">
-            <span class="gis-card-title">🗺️ 2. Geospatial Intelligence Viewer</span>
-            <span class="status-pill status-active">Interactive Canvas</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Generate display composite
-    display_image: Optional[np.ndarray] = None
-    active_mask: Optional[np.ndarray] = None
-    bbox_coords: Optional[List[float]] = None
-    evidence_label = "Target Detection"
-    confidence_val: Optional[float] = None
-
-    if st.session_state.result and st.session_state.result.get("success"):
-        res = st.session_state.result
-        confidence_val = res.get("confidence")
-        if "visual_evidence" in res and "coordinates" in res["visual_evidence"]:
-            bbox_coords = res["visual_evidence"]["coordinates"]
-        if "spectral_evidence" in res and res["spectral_evidence"].get("has_mask"):
-            active_mask = res["spectral_evidence"]["mask"]
-
-    # Base Optical
-    s2_img = None
-    if st.session_state.s2_data is not None and st.session_state.show_s2:
-        if "False Color" in st.session_state.active_composite:
-            s2_img = generate_s2_false_color(st.session_state.s2_data)
-        else:
-            s2_img = generate_s2_rgb(st.session_state.s2_data)
-
-    # Base SAR
-    s1_img = None
-    if st.session_state.s1_data is not None and st.session_state.show_s1:
-        s1_img = generate_s1_composite(st.session_state.s1_data)
-
-    # Blend / Display logic
-    if s2_img is not None and s1_img is not None:
-        alpha = st.session_state.opacity_blend / 100.0
-        # Resize if dimensions differ
-        if s2_img.shape != s1_img.shape:
-            h_tgt, w_tgt = s2_img.shape[:2]
-            s1_resized = np.array(Image.fromarray(s1_img).resize((w_tgt, h_tgt)))
-        else:
-            s1_resized = s1_img
-        display_image = ((1.0 - alpha) * s2_img + alpha * s1_resized).astype(np.uint8)
-    elif s2_img is not None:
-        display_image = s2_img
-    elif s1_img is not None:
-        display_image = s1_img
-
-    # Apply Evidence Overlay if enabled
-    if display_image is not None:
-        if st.session_state.show_evidence and (bbox_coords is not None or active_mask is not None):
-            display_image = render_evidence_overlay(
-                display_image,
-                bbox=bbox_coords,
-                mask=active_mask,
-                label=evidence_label,
-                confidence=confidence_val,
-            )
-
-        # Render Geospatial Image
-        st.image(
-            display_image,
-            use_container_width=True,
-            caption="SatQuery Earth Observation Raster Viewer",
-        )
-
-        # Geospatial Telemetry HUD
-        meta_active = st.session_state.s2_meta or st.session_state.s1_meta or {}
-        bounds = meta_active.get("bounds", {"left": 78.14, "bottom": 26.21, "right": 78.19, "top": 26.25}) or {}
-        res_m = meta_active.get("resolution", (10.0, 10.0))
-
-        st.markdown(
-            f"""
-            <div style="background:#091326; border:1px solid #16243D; border-radius:8px; padding:10px 14px; font-size:0.75rem; font-family:'JetBrains Mono',monospace; color:#94A3B8; margin-top:8px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <div><span style="color:#38BDF8;">EXTENT (MinX, MinY):</span> {bounds.get('left', 0.0):.4f}, {bounds.get('bottom', 0.0):.4f}</div>
-                    <div><span style="color:#38BDF8;">MAX (MaxX, MaxY):</span> {bounds.get('right', 0.0):.4f}, {bounds.get('top', 0.0):.4f}</div>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div><span style="color:#F37021;">GSD RESOLUTION:</span> {res_m[0]}m / px</div>
-                    <div><span style="color:#10B981;">CO-REGISTRATION:</span> UTM Sub-Pixel Aligned</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            """
-            <div style="background:#070F1E; border:2px dashed #1B2B47; border-radius:12px; height:380px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:2rem;">
-                <div style="font-size:3rem; margin-bottom:1rem; opacity:0.6;">🛰️</div>
-                <h3 style="color:#CBD5E1; font-size:1.15rem; margin-bottom:6px;">No Satellite Imagery Active</h3>
-                <p style="color:#64748B; font-size:0.86rem; max-width:320px; margin-bottom:1.5rem;">
-                    Upload a Sentinel-1 or Sentinel-2 GeoTIFF from the left panel, or click a 1-click sample scene.
-                </p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-# ============================================================
-# RIGHT COLUMN: Natural Language Query & Intelligence Report
-# ============================================================
-with col_right:
-    st.markdown(
-        """
-        <div class="gis-card-header">
-            <span class="gis-card-title">💬 3. Agentic Query & Analysis</span>
-            <span class="status-pill status-orange">Natural Language</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    # Preset Questions Dropdown
+left, right = st.columns([1.15, 0.85], gap="large")
+with left:
+    st.subheader("Natural Language Query")
+    st.caption("Ask the satellite imagery what you want to know.")
     presets = {
         "Custom query": "",
-        "Water Inundation Detection": "Is there water in this image?",
-        "Forest & Vegetation Grounding": "Highlight the forested area",
-        "Comprehensive Land Cover": "Describe the land cover in this scene",
-        "Built-up & Infrastructure": "Are there buildings or urban structures visible?",
-        "Agricultural Crop Boundaries": "Locate the agricultural fields",
+        "Water detection": "Is there water in this image?",
+        "Forest detection": "Highlight the forested area",
+        "Land cover": "Describe the land cover in this scene",
+        "Buildings": "Are there any buildings visible?",
+        "Agriculture": "Locate the agricultural fields",
+        "Terrain": "What type of terrain is shown?",
     }
-
-    selected_preset = st.selectbox(
-        "Select Query Preset or enter custom prompt:",
+    preset = st.selectbox(
+        "Query preset",
         list(presets.keys()),
-        index=1,
     )
-
-    if selected_preset != "Custom query":
-        st.session_state.query = presets[selected_preset]
-
-    query_input = st.text_area(
-        "Natural-Language Question",
+    if preset != "Custom query":
+        st.session_state.query = presets[preset]
+    query = st.text_area(
+        "Your question",
         value=st.session_state.query,
-        height=90,
-        placeholder="e.g. Is there water in this image? or Highlight the forested area",
+        height=130,
+        placeholder="Example: Is there water in this image?",
     )
-    st.session_state.query = query_input
-
-    # Analyze Button
-    can_analyze = bool(
-        query_input.strip()
-        and (st.session_state.s2_data is not None or st.session_state.s1_data is not None)
-    )
-
-    run_analysis = st.button(
-        "⚡ Execute Agentic Analysis",
+    st.session_state.query = query
+    analyze = st.button(
+        "Analyze imagery →",
         type="primary",
-        disabled=not can_analyze,
         use_container_width=True,
     )
-
-    if not can_analyze:
-        st.caption("⚠️ Upload at least one satellite raster and enter a question to analyze.")
-
-    # Execution Logic
-    if run_analysis:
-        progress_placeholder = st.empty()
-        
-        # Staged progress visualizer
-        stages = [
-            "1/5 Validating raster CRS & tensor channels...",
-            "2/5 Classifying query intent & routing specialist...",
-            "3/5 Executing 48.7M parameter PyTorch VLM...",
-            "4/5 Computing spectral index grounding (NDWI/NDVI)...",
-            "5/5 Synthesizing visual evidence report...",
-        ]
-        for stage in stages:
-            progress_placeholder.markdown(
-                f"""
-                <div style="background:#091326; border:1px solid #F37021; border-radius:6px; padding:8px 12px; font-size:0.8rem; font-family:'JetBrains Mono',monospace; color:#F37021; margin-bottom:10px;">
-                    ● {stage}
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-            time.sleep(0.12)
-
-        try:
-            _, _, controller, _ = get_cached_system()
-
-            # Prepare Tensors
-            s2_tensor = None
-            if st.session_state.s2_data is not None:
-                s2_arr = st.session_state.s2_data.copy()
-                if s2_arr.shape[0] < 12:
-                    reps = int(np.ceil(12 / s2_arr.shape[0]))
-                    s2_arr = np.concatenate([s2_arr] * reps, axis=0)
-                s2_tensor = torch.from_numpy(s2_arr[:12]).float()
-
-            s1_tensor = None
-            if st.session_state.s1_data is not None:
-                s1_arr = st.session_state.s1_data.copy()
-                if s1_arr.shape[0] < 2:
-                    reps = int(np.ceil(2 / s1_arr.shape[0]))
-                    s1_arr = np.concatenate([s1_arr] * reps, axis=0)
-                s1_tensor = torch.from_numpy(s1_arr[:2]).float()
-
-            result = controller.process_query(
-                query=st.session_state.query,
-                s2_image=s2_tensor,
-                s1_image=s1_tensor,
-                raw_s2_raster=st.session_state.s2_data,
-                raw_s1_raster=st.session_state.s1_data,
-            )
-
-            st.session_state.result = result
-            st.session_state.analysis_complete = True
-            progress_placeholder.empty()
-            st.rerun()
-
-        except Exception as exc:
-            progress_placeholder.empty()
-            st.error(f"Analysis failed: {str(exc)}")
-
-    # Analysis Results Display
-    if st.session_state.analysis_complete and st.session_state.result:
-        res = st.session_state.result
-
-        if res.get("success"):
-            task_type = res.get("task_type", "vqa").replace("_", " ").title()
-            conf = res.get("confidence", 0.90)
-            answer = res.get("answer", "Analysis conclusive.")
-            trace = res.get("trace", {})
-
-            st.markdown(
-                f"""
-                <div class="gis-card" style="background:#081429; border:1px solid #1E3A6E; padding:14px; margin-top:10px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                        <span class="status-pill status-orange" style="font-weight:700;">{task_type}</span>
-                        <span style="font-family:'JetBrains Mono',monospace; font-size:0.82rem; color:#10B981;">
-                            Confidence: {conf:.1%}
-                        </span>
-                    </div>
-                    <div style="font-size:0.95rem; line-height:1.5; color:#F8FAFC; margin-bottom:12px;">
-                        {answer}
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            # Spectral Evidence Card if available
-            if "spectral_evidence" in res and res["spectral_evidence"].get("grounded"):
-                ev = res["spectral_evidence"]
-                metrics_html = "".join(
-                    [
-                        f'<div style="margin-right:12px;">{k}: <span class="code-tag" style="color:#38BDF8;">{v}</span></div>'
-                        for k, v in ev.get("metrics", {}).items()
-                    ]
-                )
-                st.markdown(
-                    f"""
-                    <div class="gis-card" style="padding:10px; background:#06101E; border:1px solid #162B4D; margin-top:8px;">
-                        <div style="font-weight:600; font-size:0.78rem; color:#38BDF8; margin-bottom:6px;">
-                            🔬 Physical Spectral Verification
-                        </div>
-                        <div style="font-size:0.82rem; color:#CBD5E1; margin-bottom:6px;">
-                            {ev.get('summary', '')}
-                        </div>
-                        <div style="display:flex; flex-wrap:wrap; font-size:0.75rem; color:#94A3B8;">
-                            {metrics_html}
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-            # Execution Trace Expander
-            with st.expander("⏱️ Inspection: Millisecond Execution Trace", expanded=False):
-                total_ms = trace.get("total_duration_ms", 0.0)
-                st.markdown(f"**Total Pipeline Latency:** `{total_ms:.2f} ms`")
-                steps = trace.get("steps", [])
-                for idx, s in enumerate(steps, 1):
-                    st.markdown(
-                        f"""
-                        <div style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; padding:4px 0; border-bottom:1px solid #16243D;">
-                            <span style="color:#38BDF8;">{idx}. {s.get('name')}</span> 
-                            <span style="color:#64748B;">({s.get('duration_ms')}ms)</span>: 
-                            <span style="color:#CBD5E1;">{s.get('output')}</span>
-                        </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
+with right:
+    st.subheader("Data Inventory")
+    with st.container(border=True):
+        if s2_file is not None:
+            st.markdown(f"**🟢 Sentinel-2**")
+            st.caption(f"{s2_file.name} · {format_bytes(s2_file.size)}")
         else:
-            st.error("Analysis encountered an error.")
-            for err in res.get("errors", []):
-                st.write(f"• {err}")
-
-# Bottom Bar
-st.markdown("<hr style='border-color:#16243D; margin: 24px 0 12px 0;'>", unsafe_allow_html=True)
-st.markdown(
-    """
-    <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.75rem; color:#64748B;">
-        <div>SatQuery AI · Geospatial Workstation v2.0 · Team Aarohan</div>
-        <div>Smart India Hackathon 2026 · Ministry of Electronics & IT / ISRO Evaluation</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+            st.markdown("**Sentinel-2**")
+            st.caption("No optical imagery uploaded")
+    with st.container(border=True):
+        if s1_file is not None:
+            st.markdown("**🔵 Sentinel-1**")
+            st.caption(f"{s1_file.name} · {format_bytes(s1_file.size)}")
+        else:
+            st.markdown("**Sentinel-1**")
+            st.caption("No SAR imagery uploaded")
+# ============================================================
+# Analysis
+# ============================================================
+if analyze:
+    if not query.strip():
+        st.warning("Enter a question before starting the analysis.")
+    elif s2_file is None and s1_file is None:
+        st.warning("Upload at least one Sentinel-1 or Sentinel-2 image.")
+    else:
+        with st.spinner("Analyzing satellite imagery..."):
+            try:
+                _, _, controller = initialize_model()
+                s2_tensor = None
+                s1_tensor = None
+                if s2_file is not None:
+                    s2_raster = read_uploaded_raster(s2_file)
+                    if s2_raster is not None:
+                        s2_tensor = raster_to_model_tensor(s2_raster, bands=12)
+                    else:
+                        s2_image = uploaded_file_to_numpy(s2_file)
+                        s2_tensor = image_to_tensor(s2_image, bands=12)
+                if s1_file is not None:
+                    s1_raster = read_uploaded_raster(s1_file)
+                    if s1_raster is not None:
+                        s1_tensor = raster_to_model_tensor(s1_raster, bands=2)
+                    else:
+                        s1_image = uploaded_file_to_numpy(s1_file)
+                        s1_tensor = image_to_tensor(s1_image, bands=2)
+                if s2_tensor is None and s1_tensor is None:
+                    st.error("The uploaded imagery could not be read.")
+                else:
+                    result = controller.process_query(
+                        query=query,
+                        s2_image=s2_tensor,
+                        s1_image=s1_tensor,
+                    )
+                    st.session_state.result = result
+                    st.session_state.analysis_complete = True
+            except Exception as exc:
+                st.session_state.result = {
+                    "success": False,
+                    "errors": [str(exc)],
+                }
+                st.session_state.analysis_complete = True
+# ============================================================
+# Analysis Results
+# ============================================================
+if st.session_state.analysis_complete:
+    result = st.session_state.result
+    st.divider()
+    st.subheader("Analysis Output")
+    if result and result.get("success"):
+        answer = result.get("answer", "No answer returned.")
+        confidence = result.get("confidence")
+        task_type = result.get("task_type", "unknown")
+        c1, c2, c3 = st.columns([2.2, 1, 1], gap="medium")
+        with c1:
+            with st.container(border=True):
+                st.markdown("#### Answer")
+                st.write(answer)
+        with c2:
+            st.metric(
+                "Task",
+                str(task_type).replace("_", " ").title(),
+            )
+        with c3:
+            if confidence is None:
+                st.metric("Confidence", "—")
+            else:
+                try:
+                    st.metric("Confidence", f"{float(confidence):.1%}")
+                except (ValueError, TypeError):
+                    st.metric("Confidence", str(confidence))
+        trace = result.get("trace")
+        if trace:
+            with st.expander("View execution details"):
+                if isinstance(trace, str):
+                    st.code(trace, language="json")
+                else:
+                    st.json(trace)
+    else:
+        st.error("Analysis failed.")
+        errors = result.get("errors", ["Unknown processing error."]) if result else ["Unknown processing error."]
+        for error in errors:
+            st.write(f"• {error}")
+# ============================================================
+# Geospatial Viewer
+# ============================================================
+st.divider()
+st.subheader("Geospatial Viewer")
+st.caption("Preview the uploaded satellite imagery used by the analysis pipeline.")
+viewer_left, viewer_right = st.columns(2, gap="medium")
+with viewer_left:
+    st.markdown("#### Sentinel-2 · Optical")
+    if s2_file is not None and show_optical:
+        s2_raster = read_uploaded_raster(s2_file)
+        if s2_raster is not None:
+            preview = create_preview(s2_raster)
+            if preview is not None:
+                st.image(preview, use_container_width=True)
+            else:
+                st.info("Sentinel-2 was uploaded, but a preview could not be generated.")
+        else:
+            s2_image = uploaded_file_to_numpy(s2_file)
+            if s2_image is not None:
+                st.image(s2_image, use_container_width=True)
+            else:
+                st.info("Sentinel-2 was uploaded, but a preview could not be generated.")
+    elif s2_file is not None and not show_optical:
+        st.info("Optical imagery is hidden. Enable it from the Viewer controls.")
+    else:
+        st.info("Upload Sentinel-2 imagery to preview it here.")
+with viewer_right:
+    st.markdown("#### Sentinel-1 · SAR")
+    if s1_file is not None and show_sar:
+        s1_raster = read_uploaded_raster(s1_file)
+        if s1_raster is not None:
+            preview = create_preview(s1_raster)
+            if preview is not None:
+                st.image(preview, use_container_width=True)
+            else:
+                st.info("Sentinel-1 was uploaded, but a preview could not be generated.")
+        else:
+            s1_image = uploaded_file_to_numpy(s1_file)
+            if s1_image is not None:
+                st.image(s1_image, use_container_width=True)
+            else:
+                st.info("Sentinel-1 was uploaded, but a preview could not be generated.")
+    elif s1_file is not None and not show_sar:
+        st.info("SAR imagery is hidden. Enable it from the Viewer controls.")
+    else:
+        st.info("Upload Sentinel-1 imagery to preview it here.")
+# ============================================================
+# Footer
+# ============================================================
+st.divider()
+st.caption("SatQuery AI · Earth Observation Intelligence · Team Aarohan")
