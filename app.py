@@ -177,7 +177,7 @@ div[data-testid="stMarkdownContainer"] > div {
 .hero-message {
     position: absolute;
     z-index: 3;
-    left: 71.5vw;
+    left: 69.5vw;
     top: 42.5vh;
     margin: 0 !important;
     padding: 0 !important;
@@ -200,7 +200,7 @@ div[data-testid="stMarkdownContainer"] > div {
    state transition remains reliable. */
 div[data-testid="stButton"] {
     position: fixed !important;
-    left: 71.5vw !important;
+    left: 69.5vw !important;
     top: 77.6vh !important;
     width: 196px !important;
     height: 52px !important;
