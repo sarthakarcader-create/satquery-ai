@@ -240,7 +240,7 @@ div[data-testid="stMarkdownContainer"] > div {
     font-weight: 400 !important;
     font-style: normal !important;
 
-    line-height: 0.88 !important;
+    line-height: 0.74 !important;
     letter-spacing: 0 !important;
     word-spacing: 0 !important;
 
@@ -397,6 +397,7 @@ div[data-testid="stButton"] > button:focus-visible {
         left: 8vw;
         top: 54vh;
         font-size: clamp(1.8rem, 9vw, 3rem) !important;
+        line-height: 0.76 !important;
         white-space: normal;
     }
 
