@@ -178,7 +178,7 @@ div[data-testid="stMarkdownContainer"] > div {
 .hero-message {
     position: absolute;
     z-index: 3;
-    left: 69.2vw;
+    left: 74.0vw;
     top: 42.5vh;
     margin: 0 !important;
     padding: 0 !important;
@@ -201,7 +201,7 @@ div[data-testid="stMarkdownContainer"] > div {
    state transition remains reliable. */
 div[data-testid="stButton"] {
     position: fixed !important;
-    left: 69.2vw !important;
+    left: 74.0vw !important;
     top: 77.6vh !important;
     width: 196px !important;
     height: 52px !important;
@@ -286,13 +286,13 @@ div[data-testid="stButton"] > button:focus-visible {
         font-size: clamp(3rem, 7.4vw, 5.4rem) !important;
     }
     .hero-message {
-        left: 64.5vw;
+        left: 69.0vw;
         top: 44vh;
         font-size: clamp(2.35rem, 5vw, 4.1rem) !important;
         line-height: 1.06 !important;
     }
     div[data-testid="stButton"] {
-        left: 64.5vw !important;
+        left: 69.0vw !important;
         top: 77vh !important;
         width: 176px !important;
         height: 48px !important;
