@@ -229,19 +229,19 @@ div[data-testid="stMarkdownContainer"] > div {
     position: absolute;
     z-index: 3;
 
-    left: 68.5vw;
-    top: 49.2vh;
+    left: 69.0vw;
+    top: 46.8vh;
 
     margin: 0 !important;
     padding: 0 !important;
 
     font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
-    font-size: clamp(2.2rem, 4.25vw, 4.25rem) !important;
+    font-size: clamp(1.9rem, 3.0vw, 3.35rem) !important;
     font-weight: 400 !important;
     font-style: normal !important;
 
-    line-height: 0.74 !important;
-    letter-spacing: 0 !important;
+    line-height: 0.94 !important;
+    letter-spacing: 0.01em !important;
     word-spacing: 0 !important;
 
     color: #ffffff !important;
@@ -377,7 +377,8 @@ div[data-testid="stButton"] > button:focus-visible {
     .hero-message {
         left: 66vw;
         top: 49vh;
-        font-size: clamp(2rem, 4.8vw, 3.7rem) !important;
+        font-size: clamp(1.8rem, 3.8vw, 3rem) !important;
+        line-height: 0.94 !important;
     }
 
     div[data-testid="stButton"] {
