@@ -20,9 +20,6 @@ from src.agents.controller import SatQueryController
 
 # ============================================================
 # Landing Page State
-# (checked before set_page_config so we can control the
-# sidebar's initial state depending on whether the hero or
-# the tool is being shown)
 # ============================================================
 
 if "launched" not in st.session_state:
@@ -70,8 +67,7 @@ HERO_VIDEO = get_base64(PROJECT_ROOT / "assets" / "hero.mp4")
 # Styling
 # ============================================================
 
-# Base dark theme — applies on both the landing hero and the
-# tool view.
+# Base dark theme — applies on both the landing hero and the tool view.
 st.markdown(
     """<style>
     .stApp {
@@ -125,9 +121,7 @@ st.markdown(
 if not st.session_state.launched:
     st.markdown(
         r"""<style>
-        /* Load the same condensed display face used by the landing design.
-           Anton is the primary face; the remaining values are safe fallbacks. */
-        @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Poppins:wght@700;800;900&display=swap');
 
         /* Remove Streamlit chrome on the landing screen */
         [data-testid="stHeader"],
@@ -145,17 +139,16 @@ if not st.session_state.launched:
             overflow: hidden;
         }
 
-        /* Remove any visual treatment from Streamlit's markdown wrapper */
         div[data-testid="stMarkdownContainer"],
         div[data-testid="stMarkdownContainer"] > div {
             background: transparent !important;
         }
 
         /* ============================================================
-           HERO
+           HERO SECTION
            ============================================================ */
 
-        .hero {
+        .hero-wrapper {
             position: relative;
             width: 100vw;
             height: 100vh;
@@ -164,6 +157,9 @@ if not st.session_state.launched:
             overflow: hidden;
             box-sizing: border-box;
             background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .hero-video {
@@ -174,10 +170,9 @@ if not st.session_state.launched:
             object-fit: cover;
             object-position: center center;
             z-index: 0;
-            pointer-events: none;
         }
 
-        /* Cinematic overlay */
+        /* Cinematic gradient overlay */
         .hero-overlay {
             position: absolute;
             inset: 0;
@@ -185,162 +180,223 @@ if not st.session_state.launched:
             pointer-events: none;
             background:
                 linear-gradient(
-                    90deg,
-                    rgba(0, 0, 0, 0.48) 0%,
-                    rgba(0, 0, 0, 0.12) 55%,
-                    rgba(0, 0, 0, 0.34) 100%
-                ),
-                linear-gradient(
-                    180deg,
-                    rgba(0, 0, 0, 0.18) 0%,
-                    rgba(0, 0, 0, 0.02) 48%,
-                    rgba(0, 0, 0, 0.44) 100%
+                    135deg,
+                    rgba(0, 0, 0, 0.55) 0%,
+                    rgba(0, 0, 0, 0.15) 50%,
+                    rgba(0, 0, 0, 0.45) 100%
                 );
         }
 
+        /* Content container */
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 4.5rem;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+
         /* ============================================================
-           MAIN HEADLINE
+           HEADLINE
            ============================================================ */
 
         .hero-title {
-            position: absolute;
-            top: 3.8rem;
-            left: 4.5rem;
-            z-index: 2;
-
             margin: 0;
             padding: 0;
-
-            font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif;
-            font-size: clamp(4rem, 7.5vw, 7.5rem);
-            font-weight: 400;
-            line-height: 0.9;
-            letter-spacing: 1.5px;
-
-            color: #ffffff !important;
-            text-shadow: 3px 4px 15px rgba(0, 0, 0, 0.68);
-
-            /* Prevent the heading from inheriting Streamlit margins */
+            font-family: 'Poppins', 'Anton', Impact, sans-serif;
+            font-size: clamp(3.5rem, 8vw, 8rem);
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -2px;
+            color: #ffffff;
+            text-shadow: 
+                4px 6px 20px rgba(0, 0, 0, 0.75),
+                0 0 40px rgba(100, 150, 255, 0.2);
             display: block;
             width: fit-content;
-            max-width: none;
+            max-width: 90vw;
+        }
+
+        .hero-subtitle {
+            margin: 0.8rem 0 0 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            font-size: clamp(1rem, 2.5vw, 1.25rem);
+            font-weight: 400;
+            line-height: 1.5;
+            letter-spacing: 0.5px;
+            color: rgba(232, 238, 247, 0.85);
+            text-shadow: 2px 3px 12px rgba(0, 0, 0, 0.7);
+            width: fit-content;
+            max-width: 90vw;
         }
 
         /* ============================================================
-           BOTTOM-RIGHT TAGLINE
+           TAGLINE
            ============================================================ */
 
         .hero-tagline {
-            position: absolute;
-            right: 4.75rem;
-            bottom: 10.75rem;
-            z-index: 2;
-
             margin: 0;
             padding: 0;
-
-            text-align: right;
-            font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif;
-            font-size: clamp(2.15rem, 4.15vw, 4.15rem);
-            font-weight: 400;
-            line-height: 1.02;
-            letter-spacing: 0.8px;
-
+            font-family: 'Poppins', sans-serif;
+            font-size: clamp(1.75rem, 5vw, 3.5rem);
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -1px;
             color: #ffffff;
-            text-shadow: 2px 3px 13px rgba(0, 0, 0, 0.82);
+            text-shadow: 3px 4px 16px rgba(0, 0, 0, 0.8);
+            text-align: left;
+            max-width: 90vw;
+        }
+
+        .hero-tagline-accent {
+            display: block;
+            background: linear-gradient(135deg, #6BA3FF, #A8D5FF);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 900;
+        }
+
+        .hero-bottom {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 2rem;
+        }
+
+        .hero-text-group {
+            flex: 1;
         }
 
         /* ============================================================
-           LAUNCH BUTTON
+           CUSTOM LAUNCH BUTTON
            ============================================================ */
 
-        div[data-testid="stButton"] {
-            position: fixed;
-            right: 4.75rem;
-            bottom: 3.15rem;
-            z-index: 50;
-            width: auto !important;
-            margin: 0 !important;
-            padding: 0 !important;
+        .hero-button-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            pointer-events: auto;
+            min-height: 70px;
         }
 
-        div[data-testid="stButton"] > button {
-            min-width: 215px !important;
-            min-height: 58px !important;
-
-            padding: 0.65rem 1.65rem !important;
-
-            border: 1.5px solid rgba(255, 255, 255, 0.88) !important;
-            border-radius: 999px !important;
-
-            background: rgba(15, 18, 22, 0.25) !important;
-            color: #ffffff !important;
-
-            font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
-            font-size: 1.02rem !important;
-            font-weight: 400 !important;
-            letter-spacing: 1.8px !important;
-
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-
-            box-shadow:
-                0 10px 30px rgba(0, 0, 0, 0.28);
-
-            transition:
-                background 0.22s ease,
-                color 0.22s ease,
-                border-color 0.22s ease,
-                transform 0.22s ease,
-                box-shadow 0.22s ease;
+        .hero-button {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 14px 48px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(107, 163, 255, 0.25), rgba(168, 213, 255, 0.15));
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 1px rgba(255, 255, 255, 0.2);
+            text-decoration: none;
+            white-space: nowrap;
         }
 
-        div[data-testid="stButton"] > button:hover {
-            background: rgba(255, 255, 255, 0.96) !important;
-            color: #111111 !important;
-            border-color: #ffffff !important;
-
+        .hero-button:hover {
+            background: linear-gradient(135deg, rgba(107, 163, 255, 0.4), rgba(168, 213, 255, 0.3));
+            border-color: rgba(255, 255, 255, 0.9);
+            color: #ffffff;
             transform: translateY(-3px);
-
             box-shadow:
-                0 15px 38px rgba(0, 0, 0, 0.38);
+                0 12px 42px rgba(107, 163, 255, 0.35),
+                0 0 20px rgba(168, 213, 255, 0.2),
+                inset 0 1px 1px rgba(255, 255, 255, 0.3);
         }
 
-        div[data-testid="stButton"] > button:focus,
-        div[data-testid="stButton"] > button:focus-visible {
-            color: #ffffff !important;
-            border-color: rgba(255, 255, 255, 0.95) !important;
+        .hero-button:active {
+            transform: translateY(-1px);
             box-shadow:
-                0 0 0 2px rgba(255,255,255,0.15),
-                0 10px 30px rgba(0,0,0,0.28) !important;
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 1px rgba(255, 255, 255, 0.2);
+        }
+
+        .hero-button-arrow {
+            display: inline-block;
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+            font-weight: 900;
+            font-size: 1.2rem;
+        }
+
+        .hero-button:hover .hero-button-arrow {
+            transform: translateX(4px);
         }
 
         /* ============================================================
-           RESPONSIVE
+           RESPONSIVE DESIGN
            ============================================================ */
 
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
+            .hero-content {
+                padding: 3.5rem 2.5rem;
+            }
+
             .hero-title {
-                top: 2.25rem;
-                left: 2rem;
-                font-size: clamp(3.2rem, 14vw, 5.2rem);
+                font-size: clamp(2.5rem, 10vw, 5.5rem);
+                letter-spacing: -1px;
             }
 
             .hero-tagline {
-                right: 2rem;
-                bottom: 9rem;
-                font-size: clamp(1.75rem, 8.2vw, 3rem);
+                font-size: clamp(1.4rem, 6vw, 3rem);
             }
 
-            div[data-testid="stButton"] {
-                right: 2rem;
-                bottom: 2rem;
+            .hero-bottom {
+                flex-direction: column;
+                justify-content: flex-end;
+                align-items: flex-start;
             }
 
-            div[data-testid="stButton"] > button {
-                min-width: 190px !important;
-                min-height: 54px !important;
-                font-size: 0.95rem !important;
+            .hero-button-wrapper {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .hero-content {
+                padding: 2rem;
+            }
+
+            .hero-title {
+                font-size: clamp(2rem, 12vw, 4rem);
+                letter-spacing: -0.5px;
+            }
+
+            .hero-subtitle {
+                font-size: clamp(0.85rem, 3vw, 1rem);
+            }
+
+            .hero-tagline {
+                font-size: clamp(1.2rem, 7vw, 2.5rem);
+                letter-spacing: -0.5px;
+            }
+
+            .hero-button {
+                padding: 12px 36px;
+                font-size: 0.95rem;
+            }
+
+            .hero-button-arrow {
+                font-size: 1rem;
             }
         }
 
@@ -356,8 +412,7 @@ if not st.session_state.launched:
 if not st.session_state.launched:
     st.markdown(
         f"""
-        <div class="hero">
-
+        <div class="hero-wrapper">
             <video
                 class="hero-video"
                 autoplay
@@ -374,31 +429,62 @@ if not st.session_state.launched:
 
             <div class="hero-overlay"></div>
 
-            <h1 class="hero-title">SAT QUERY AI</h1>
+            <div class="hero-content">
+                <div>
+                    <h1 class="hero-title">SATQUERY</h1>
+                    <p class="hero-subtitle">AI-Powered Earth Observation</p>
+                </div>
 
-            <div class="hero-tagline">
-                Talk to the Earth<br>
-                in Plain Language.
+                <div class="hero-bottom">
+                    <div class="hero-text-group">
+                        <div class="hero-tagline">
+                            Talk to the Earth<br>
+                            <span class="hero-tagline-accent">in Plain Language</span>
+                        </div>
+                    </div>
+                    <div class="hero-button-wrapper">
+                        <button class="hero-button" id="launchBtn">
+                            Launch
+                            <span class="hero-button-arrow">→</span>
+                        </button>
+                    </div>
+                </div>
             </div>
-
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    st.button(
-        "LAUNCH SATQUERY  →",
-        key="launch_btn",
-        on_click=launch,
+    # Add custom JavaScript for button interaction
+    st.markdown(
+        """
+        <script>
+        document.getElementById('launchBtn').addEventListener('click', function() {
+            const stButton = document.querySelector('[data-testid="stButton"] button');
+            if (stButton) {
+                stButton.click();
+            }
+        });
+        </script>
+        """,
+        unsafe_allow_html=True,
     )
+
+    # Hidden Streamlit button for state management
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        st.button(
+            "LAUNCH SATQUERY",
+            key="launch_btn",
+            on_click=launch,
+            use_container_width=False,
+        )
 
     st.stop()
 
 
 # ============================================================
 # Helpers
-# ============================================================
-
 # ============================================================
 
 def format_bytes(size: int) -> str:
