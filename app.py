@@ -1,17 +1,3 @@
-"""
-SatQuery AI - Streamlit Web Application
-=======================================
-
-Interactive web interface for SatQuery AI.
-
-Run locally:
-    streamlit run app.py
-
-IMPORTANT:
-This application is Streamlit-only. It does not start Gradio or any
-secondary web server.
-"""
-
 import base64
 import sys
 from pathlib import Path
@@ -72,7 +58,7 @@ def get_base64(path: str) -> str:
     return base64.b64encode(Path(path).read_bytes()).decode()
 
 
-HERO_IMG = get_base64("assets/hero.jpg")
+HERO_VIDEO = get_base64("assets/hero.mp4")
 
 
 # ============================================================
@@ -131,73 +117,162 @@ st.markdown(
 )
 
 if not st.session_state.launched:
-    # Landing-only overrides: strip Streamlit chrome and default
-    # padding so the hero image can go full-bleed.
+    # Landing-only overrides: full-screen video hero with custom overlay content.
     st.markdown(
         f"""<style>
         @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
 
         [data-testid="stHeader"], footer, section[data-testid="stSidebar"] {{
-            display: none;
+            display: none !important;
         }}
+
         .block-container {{
             padding: 0 !important;
             max-width: 100% !important;
         }}
 
+        .stApp {{
+            overflow: hidden;
+        }}
+
+        /* Full-screen hero */
         .hero {{
             position: relative;
-            width: 100%;
+            width: 100vw;
             height: 100vh;
-            margin: -2rem -1rem -3rem -1rem;
-            background-image: url('data:image/jpeg;base64,{HERO_IMG}');
-            background-size: cover;
-            background-position: center;
+            margin: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+            padding: 4rem 4.5rem;
+        }}
+
+        /* Full-screen background video */
+        .hero-video {{
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            z-index: 0;
+        }}
+
+        /* Cinematic readability overlay */
+        .hero-overlay {{
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(90deg,
+                    rgba(0,0,0,0.55) 0%,
+                    rgba(0,0,0,0.16) 55%,
+                    rgba(0,0,0,0.38) 100%),
+                linear-gradient(0deg,
+                    rgba(0,0,0,0.52) 0%,
+                    rgba(0,0,0,0.04) 55%,
+                    rgba(0,0,0,0.22) 100%);
+            z-index: 1;
+        }}
+
+        .hero-content {{
+            position: relative;
+            z-index: 2;
+            height: 100%;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            padding: 3.5rem 4rem;
-            box-sizing: border-box;
         }}
+
         .hero h1 {{
             font-family: 'Anton', sans-serif;
-            font-size: clamp(2.5rem, 6vw, 5.5rem);
+            font-size: clamp(3.5rem, 7vw, 7rem);
+            font-weight: 400;
             color: white !important;
             margin: 0;
+            padding: 0;
             letter-spacing: 2px;
-            text-shadow: 2px 2px 10px rgba(0,0,0,0.7);
+            line-height: 0.95;
+            text-shadow: 3px 3px 14px rgba(0,0,0,0.70);
         }}
+
+        /* Bottom-right text: slightly smaller than the main heading and lifted upward */
         .tagline-block {{
             align-self: flex-end;
             text-align: right;
-        }}
-        .tagline-block .tagline {{
-            font-family: 'Anton', sans-serif;
-            font-size: clamp(1.4rem, 3vw, 2.6rem);
-            color: white;
-            line-height: 1.2;
-            text-shadow: 1px 1px 8px rgba(0,0,0,0.8);
+            margin-bottom: 8.5rem;
+            margin-right: 1rem;
+            max-width: 650px;
         }}
 
-        div[data-testid="column"]:has(button#launch_btn) {{
-            position: absolute;
-            right: 4rem;
+        .tagline-block .tagline {{
+            font-family: 'Anton', sans-serif;
+            font-size: clamp(2rem, 4.2vw, 4.2rem);
+            font-weight: 400;
+            color: white;
+            line-height: 1.05;
+            letter-spacing: 1px;
+            text-shadow: 2px 2px 12px rgba(0,0,0,0.85);
+        }}
+
+        /* Custom launch button */
+        div[data-testid="stButton"] {{
+            position: fixed;
+            right: 4.5rem;
             bottom: 3rem;
+            z-index: 20;
             width: auto !important;
         }}
-        .stButton > button#launch_btn {{
-            background: white;
-            color: #5170ff;
-            border: 2px solid #5170ff;
+
+        div[data-testid="stButton"] button {{
+            min-height: 58px;
+            padding: 0.7rem 1.9rem;
             border-radius: 999px;
-            font-family: 'Anton', sans-serif;
-            font-size: 1.1rem;
-            padding: 0.5rem 2rem;
-            letter-spacing: 1px;
-        }}
-        .stButton > button#launch_btn:hover {{
-            background: #5170ff;
+            border: 1.5px solid rgba(255,255,255,0.82);
+            background: rgba(255,255,255,0.10);
             color: white;
+            font-family: 'Anton', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 400;
+            letter-spacing: 2px;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.28);
+            transition: all 0.25s ease;
+        }}
+
+        div[data-testid="stButton"] button:hover {{
+            background: white;
+            color: #111;
+            border-color: white;
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.38);
+        }}
+
+        div[data-testid="stButton"] button:active {{
+            transform: translateY(0);
+        }}
+
+        @media (max-width: 768px) {{
+            .hero {{
+                padding: 2rem;
+            }}
+
+            .hero h1 {{
+                font-size: clamp(3rem, 13vw, 5rem);
+            }}
+
+            .tagline-block {{
+                margin-bottom: 7rem;
+                margin-right: 0;
+            }}
+
+            .tagline-block .tagline {{
+                font-size: clamp(1.8rem, 8vw, 3rem);
+            }}
+
+            div[data-testid="stButton"] {{
+                right: 2rem;
+                bottom: 2rem;
+            }}
         }}
         </style>""",
         unsafe_allow_html=True,
@@ -210,21 +285,44 @@ if not st.session_state.launched:
 
 if not st.session_state.launched:
     st.markdown(
-        """
+        f"""
         <div class="hero">
-            <h1>SAT QUERY AI</h1>
-            <div class="tagline-block">
-                <div class="tagline">Talk to the Earth<br>in Plain Language.</div>
+            <video
+                class="hero-video"
+                autoplay
+                muted
+                loop
+                playsinline
+                preload="auto"
+            >
+                <source
+                    src="data:video/mp4;base64,{HERO_VIDEO}"
+                    type="video/mp4"
+                >
+            </video>
+
+            <div class="hero-overlay"></div>
+
+            <div class="hero-content">
+                <h1>SAT QUERY AI</h1>
+
+                <div class="tagline-block">
+                    <div class="tagline">
+                        Talk to the Earth<br>
+                        in Plain Language.
+                    </div>
+                </div>
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    _, launch_col = st.columns([5, 1])
-    with launch_col:
-        st.button("LAUNCH", key="launch_btn", on_click=launch)
-
+    st.button(
+        "LAUNCH SATQUERY  →",
+        key="launch_btn",
+        on_click=launch,
+    )
     st.stop()
 
 
