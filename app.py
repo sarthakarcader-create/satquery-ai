@@ -1,55 +1,37 @@
 import base64
 import sys
 from pathlib import Path
-
 import numpy as np
 import streamlit as st
 import torch
-
-
 # ============================================================
 # Project Setup
 # ============================================================
-
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
-
 from src.models.satquery_model import SatQueryModel, SimpleTokenizer
 from src.agents.controller import SatQueryController
-
-
 # ============================================================
 # Landing Page State
 # ============================================================
-
 if "launched" not in st.session_state:
     st.session_state.launched = False
-
-
 def launch():
     st.session_state.launched = True
-
-
 def go_home():
     st.session_state.launched = False
-
-
 # ============================================================
 # Page Configuration
 # ============================================================
-
 st.set_page_config(
     page_title="SatQuery AI",
     page_icon="🛰️",
     layout="wide",
     initial_sidebar_state="expanded" if st.session_state.launched else "collapsed",
 )
-
-
 # ============================================================
 # Hero Video
 # ============================================================
-
 @st.cache_data
 def get_base64(path: str) -> str:
     video_path = Path(path)
@@ -58,15 +40,10 @@ def get_base64(path: str) -> str:
     if not video_path.exists():
         raise FileNotFoundError(f"Hero video not found: {video_path}")
     return base64.b64encode(video_path.read_bytes()).decode()
-
-
 HERO_VIDEO = get_base64(str(PROJECT_ROOT / "assets" / "hero.mp4"))
-
-
 # ============================================================
 # Styling
 # ============================================================
-
 # Base dark theme — applies on both the landing hero and the tool view.
 st.markdown(
     """<style>
@@ -76,75 +53,60 @@ st.markdown(
             #07111f;
         color: #e8eef7;
     }
-
     .block-container {
         max-width: 1500px;
         padding-top: 2rem;
         padding-bottom: 3rem;
     }
-
     section[data-testid="stSidebar"] {
         background: #091522;
         border-right: 1px solid rgba(255,255,255,0.07);
     }
-
     h1, h2, h3, h4 {
         color: #f5f8fc !important;
         letter-spacing: -0.02em;
     }
-
     .stButton > button {
         border-radius: 10px;
         font-weight: 650;
         min-height: 44px;
     }
-
     div[data-testid="stMetric"] {
         background: #0c1b2c;
         border: 1px solid rgba(255,255,255,0.06);
         border-radius: 12px;
         padding: 15px;
     }
-
     textarea, input {
         border-radius: 10px !important;
     }
-
     hr {
         border-color: rgba(255,255,255,0.07);
     }
     </style>""",
     unsafe_allow_html=True,
 )
-
-
-
 if not st.session_state.launched:
     st.markdown(
         """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
-
 /* =========================
    LANDING PAGE ONLY
    ========================= */
-
 [data-testid="stHeader"],
 footer,
 section[data-testid="stSidebar"] {
     display: none !important;
 }
-
 .block-container {
     padding: 0 !important;
     max-width: 100% !important;
 }
-
 .stApp {
     overflow: hidden !important;
     background: #000 !important;
 }
-
 /* Remove the normal markdown spacing around our hero */
 div[data-testid="stMarkdown"],
 div[data-testid="stMarkdownContainer"],
@@ -153,7 +115,6 @@ div[data-testid="stMarkdownContainer"] > div {
     padding: 0 !important;
     background: transparent !important;
 }
-
 /* The video already contains the Earth + satellite visual.
    We only provide the positioning layer for the SVG text/button. */
 .hero {
@@ -165,7 +126,6 @@ div[data-testid="stMarkdownContainer"] > div {
     overflow: hidden;
     background: #000;
 }
-
 /* Background video */
 .hero-video {
     position: absolute;
@@ -177,7 +137,6 @@ div[data-testid="stMarkdownContainer"] > div {
     object-position: center center;
     z-index: 0;
 }
-
 /* Very subtle readability layer */
 .hero-overlay {
     position: absolute;
@@ -186,237 +145,204 @@ div[data-testid="stMarkdownContainer"] > div {
     pointer-events: none;
     background: linear-gradient(
         90deg,
-        rgba(0, 0, 20, 0.14) 0%,
+        rgba(0, 0, 20, 0.18) 0%,
         rgba(0, 0, 20, 0.00) 42%,
-        rgba(0, 0, 0, 0.03) 100%
+        rgba(0, 0, 0, 0.18) 100%
     );
 }
-
 /* =========================
    SVG: MAIN HEADING
+   Shifted right of the baked-in Aarohan badge
    ========================= */
-
 .hero-title {
     position: absolute;
     z-index: 3;
-
-    top: 6.0vh;
-    left: 1.85vw;
-
+    top: 5.1vh;
+    left: 13.6vw;
     margin: 0 !important;
     padding: 0 !important;
-
     font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
-    font-size: clamp(4.1rem, 8.3vw, 8rem) !important;
+    font-size: clamp(3.5rem, 6.9vw, 6.7rem) !important;
     font-weight: 400 !important;
     font-style: normal !important;
-
-    line-height: 0.88 !important;
-    letter-spacing: 0 !important;
-    word-spacing: 0 !important;
-
+    line-height: 0.92 !important;
+    letter-spacing: 0.02em !important;
+    word-spacing: 0.04em !important;
     color: #ffffff !important;
     white-space: nowrap;
-
-    text-shadow: 2px 3px 8px rgba(0, 0, 0, 0.28);
+    text-shadow: 2px 4px 14px rgba(0, 0, 0, 0.38);
 }
-
 /* =========================
    SVG: RIGHT-HAND MESSAGE
    ========================= */
-
 .hero-message {
     position: absolute;
     z-index: 3;
-
-    left: 72.5vw;
-    top: 47.0vh;
-
+    left: 61.8vw;
+    top: 42.5vh;
     margin: 0 !important;
     padding: 0 !important;
-
     font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
-    font-size: clamp(2.4rem, 4.35vw, 4.6rem) !important;
+    font-size: clamp(2.9rem, 5.15vw, 5.35rem) !important;
     font-weight: 400 !important;
     font-style: normal !important;
-
-    line-height: 1.08 !important;
-    letter-spacing: 0.005em !important;
+    line-height: 1.06 !important;
+    letter-spacing: 0.01em !important;
     word-spacing: 0 !important;
-
     color: #ffffff !important;
     text-align: left;
-
     white-space: nowrap;
-
-    text-shadow: 2px 3px 8px rgba(0, 0, 0, 0.28);
+    text-shadow: 2px 4px 14px rgba(0, 0, 0, 0.38);
 }
-
 /* =========================
    SVG: LAUNCH BUTTON
    ========================= */
-
 /* Native Streamlit button is used so the existing launch()
    state transition remains reliable. */
 div[data-testid="stButton"] {
     position: fixed !important;
-
-    left: 73.05vw !important;
-    top: 77.3vh !important;
-
-    width: 128px !important;
-    height: 34px !important;
-
+    left: 61.8vw !important;
+    top: 77.6vh !important;
+    width: 196px !important;
+    height: 52px !important;
     margin: 0 !important;
     padding: 0 !important;
-
     z-index: 20 !important;
 }
-
 div[data-testid="stButton"] > button {
     position: relative !important;
-
-    width: 128px !important;
-    min-width: 128px !important;
-
-    height: 34px !important;
-    min-height: 34px !important;
-
+    width: 196px !important;
+    min-width: 196px !important;
+    height: 52px !important;
+    min-height: 52px !important;
     margin: 0 !important;
-    padding: 0 31px 0 13px !important;
-
+    padding: 0 48px 0 22px !important;
     border: 0 !important;
     border-radius: 999px !important;
-
     background: #ffffff !important;
     color: #5d78ff !important;
-
     font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
-    font-size: 1.12rem !important;
+    font-size: 1.52rem !important;
     font-weight: 400 !important;
     font-style: italic !important;
-
-    line-height: 34px !important;
-    letter-spacing: 0 !important;
-
-    box-shadow: none !important;
-
+    line-height: 52px !important;
+    letter-spacing: 0.02em !important;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: flex-start !important;
-
     transition: transform 0.18s ease, box-shadow 0.18s ease !important;
 }
-
 div[data-testid="stButton"] > button p {
     margin: 0 !important;
     padding: 0 !important;
     font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
     font-style: italic !important;
-    font-size: 1.12rem !important;
+    font-size: 1.52rem !important;
     line-height: 1 !important;
     color: #5d78ff !important;
 }
-
 /* Circular blue play icon */
 div[data-testid="stButton"] > button::after {
     content: '▶';
-
     position: absolute;
-    right: 4px;
-    top: 4px;
-
-    width: 26px;
-    height: 26px;
-
+    right: 6px;
+    top: 6px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-
     border-radius: 50%;
     background: #5d78ff;
     color: #ffffff;
-
     font-family: Arial, sans-serif !important;
-    font-size: 10px !important;
+    font-size: 14px !important;
     font-style: normal !important;
     line-height: 1 !important;
 }
-
 div[data-testid="stButton"] > button:hover {
     background: #ffffff !important;
     color: #526fff !important;
-
-    transform: scale(1.03) !important;
-
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14) !important;
+    transform: scale(1.04) !important;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22) !important;
 }
-
 div[data-testid="stButton"] > button:hover p {
     color: #526fff !important;
 }
-
 div[data-testid="stButton"] > button:focus,
 div[data-testid="stButton"] > button:focus-visible {
     background: #ffffff !important;
     color: #5d78ff !important;
-    box-shadow: none !important;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18) !important;
 }
-
 /* =========================
    RESPONSIVE
    ========================= */
-
 @media (max-width: 1100px) {
     .hero-title {
-        top: 5vh;
-        left: 2vw;
-        font-size: clamp(3.5rem, 8.8vw, 6.5rem) !important;
+        top: 5.2vh;
+        left: 16vw;
+        font-size: clamp(3rem, 7.4vw, 5.4rem) !important;
     }
-
     .hero-message {
-        left: 68.5vw;
-        top: 48vh;
-        font-size: clamp(2rem, 4.4vw, 3.5rem) !important;
+        left: 58vw;
+        top: 44vh;
+        font-size: clamp(2.35rem, 5vw, 4.1rem) !important;
         line-height: 1.06 !important;
     }
-
     div[data-testid="stButton"] {
-        left: 71vw !important;
-        top: 76vh !important;
+        left: 58vw !important;
+        top: 77vh !important;
+        width: 176px !important;
+        height: 48px !important;
+    }
+    div[data-testid="stButton"] > button {
+        width: 176px !important;
+        min-width: 176px !important;
+        height: 48px !important;
+        min-height: 48px !important;
+        padding: 0 44px 0 18px !important;
+        font-size: 1.38rem !important;
+        line-height: 48px !important;
+    }
+    div[data-testid="stButton"] > button p {
+        font-size: 1.38rem !important;
+    }
+    div[data-testid="stButton"] > button::after {
+        width: 36px;
+        height: 36px;
+        top: 6px;
+        right: 6px;
+        font-size: 13px !important;
     }
 }
-
 @media (max-width: 700px) {
     .hero-title {
-        top: 3vh;
-        left: 4vw;
-        font-size: clamp(2.7rem, 13vw, 4.8rem) !important;
+        top: 18vh;
+        left: 6vw;
+        font-size: clamp(2.5rem, 12vw, 4.4rem) !important;
     }
-
     .hero-message {
-        left: 8vw;
-        top: 54vh;
-        font-size: clamp(1.8rem, 9vw, 3rem) !important;
-        line-height: 0.76 !important;
+        left: 6vw;
+        top: 52vh;
+        font-size: clamp(2.1rem, 9.5vw, 3.3rem) !important;
+        line-height: 1.05 !important;
         white-space: normal;
     }
-
     div[data-testid="stButton"] {
-        left: 8vw !important;
+        left: 6vw !important;
         top: auto !important;
-        bottom: 4vh !important;
+        bottom: 5vh !important;
     }
 }
 </style>
         """,
         unsafe_allow_html=True,
     )
-
 # ============================================================
 # Landing / Hero View
 # ============================================================
-
 if not st.session_state.launched:
     # IMPORTANT: HTML is deliberately kept as one continuous line.
     # This prevents Streamlit Markdown from treating indented HTML as code.
@@ -424,19 +350,15 @@ if not st.session_state.launched:
         f"""<div class="hero"><video class="hero-video" autoplay muted loop playsinline preload="auto"><source src="data:video/mp4;base64,{HERO_VIDEO}" type="video/mp4"></video><div class="hero-overlay"></div><h1 class="hero-title">SAT QUERY AI</h1><div class="hero-message">Satellite Image<br>Queries<br>Simplified...</div></div>""",
         unsafe_allow_html=True,
     )
-
     st.button(
         "Launch",
         key="launch_btn",
         on_click=launch,
     )
-
     st.stop()
-
 # ============================================================
 # Helpers
 # ============================================================
-
 def format_bytes(size: int) -> str:
     if size < 1024:
         return f"{size} B"
@@ -445,48 +367,35 @@ def format_bytes(size: int) -> str:
     if size < 1024**3:
         return f"{size / 1024**2:.1f} MB"
     return f"{size / 1024**3:.2f} GB"
-
-
 def read_uploaded_raster(uploaded_file):
     """Read a GeoTIFF/raster into C,H,W format using rasterio."""
     if uploaded_file is None:
         return None
-
     try:
         import rasterio
-
         data = uploaded_file.getvalue()
         with rasterio.MemoryFile(data) as memfile:
             with memfile.open() as dataset:
                 return dataset.read()
     except Exception:
         return None
-
-
 def uploaded_file_to_numpy(uploaded_file):
     """Read PNG/JPG-style uploads into a numpy array."""
     if uploaded_file is None:
         return None
-
     try:
         from PIL import Image
-
         uploaded_file.seek(0)
         return np.array(Image.open(uploaded_file))
     except Exception:
         return None
-
-
 def image_to_tensor(image, bands: int):
     """Convert H,W,C or H,W image data into C,H,W tensor."""
     if image is None:
         return None
-
     img = np.asarray(image)
-
     if img.ndim == 3 and img.shape[-1] == 4:
         img = img[:, :, :3]
-
     if img.ndim == 2:
         img = np.stack([img] * bands, axis=-1)
     elif img.ndim == 3:
@@ -497,37 +406,26 @@ def image_to_tensor(image, bands: int):
         img = img[:, :, :bands]
     else:
         return None
-
     img = img.astype(np.float32)
     max_value = np.nanmax(img) if img.size else 1.0
-
     if max_value > 1.0 and max_value <= 255.0:
         img /= 255.0
-
     img = np.nan_to_num(img)
     return torch.from_numpy(img.transpose(2, 0, 1)).float()
-
-
 def raster_to_model_tensor(raster, bands: int):
     """Convert rasterio C,H,W output into the model tensor format."""
     if raster is None:
         return None
-
     raster = np.asarray(raster).astype(np.float32)
-
     if raster.ndim == 2:
         raster = raster[np.newaxis, :, :]
-
     channels = raster.shape[0]
     if channels < bands:
         repeats = int(np.ceil(bands / channels))
         raster = np.concatenate([raster] * repeats, axis=0)
-
     raster = raster[:bands]
     raster = np.nan_to_num(raster)
-
     max_value = np.nanmax(raster) if raster.size else 1.0
-
     if max_value > 1.0:
         if max_value <= 255.0:
             raster /= 255.0
@@ -536,17 +434,12 @@ def raster_to_model_tensor(raster, bands: int):
             maximum = np.nanmax(raster)
             if maximum > minimum:
                 raster = (raster - minimum) / (maximum - minimum)
-
     return torch.from_numpy(raster).float()
-
-
 def create_preview(raster):
     """Create a display-friendly RGB preview from a raster."""
     if raster is None:
         return None
-
     arr = np.asarray(raster)
-
     if arr.ndim == 3:
         if arr.shape[0] >= 3:
             rgb = arr[:3].transpose(1, 2, 0)
@@ -556,25 +449,17 @@ def create_preview(raster):
             rgb = arr[0]
     else:
         rgb = arr
-
     rgb = np.nan_to_num(rgb).astype(np.float32)
-
     minimum = np.percentile(rgb, 2)
     maximum = np.percentile(rgb, 98)
-
     if maximum > minimum:
         rgb = np.clip((rgb - minimum) / (maximum - minimum), 0, 1)
-
     if rgb.ndim == 2:
         rgb = np.stack([rgb] * 3, axis=-1)
-
     return (rgb * 255).astype(np.uint8)
-
-
 # ============================================================
 # Model Initialization
 # ============================================================
-
 @st.cache_resource(show_spinner="Loading SatQuery AI model...")
 def initialize_model():
     model = SatQueryModel()
@@ -584,92 +469,67 @@ def initialize_model():
         tokenizer=tokenizer,
     )
     return model, tokenizer, controller
-
-
 # ============================================================
 # Session State
 # ============================================================
-
 if "query" not in st.session_state:
     st.session_state.query = ""
-
 if "result" not in st.session_state:
     st.session_state.result = None
-
 if "analysis_complete" not in st.session_state:
     st.session_state.analysis_complete = False
-
-
 # ============================================================
 # Header - NATIVE STREAMLIT ONLY
 # ============================================================
-
 header_l, header_r = st.columns([6, 1])
 with header_l:
     st.markdown("### 🛰️ SATQUERY AI")
 with header_r:
     st.button("← Home", on_click=go_home)
-
 st.title("Ask questions about Earth.")
 st.markdown(
     "Analyze Sentinel-1 SAR and Sentinel-2 optical imagery using "
     "natural-language queries and an evidence-grounded satellite "
     "intelligence pipeline."
 )
-
 st.divider()
-
-
 # ============================================================
 # Sidebar
 # ============================================================
-
 with st.sidebar:
     st.markdown("## 🛰️ SatQuery AI")
     st.caption("Satellite intelligence workspace")
     st.divider()
-
     st.markdown("### Data Sources")
-
     s2_file = st.file_uploader(
         "Sentinel-2 · Optical",
         type=["tif", "tiff", "png", "jpg", "jpeg"],
         key="s2_upload",
         help="Upload a Sentinel-2 optical image or GeoTIFF.",
     )
-
     s1_file = st.file_uploader(
         "Sentinel-1 · SAR",
         type=["tif", "tiff", "png", "jpg", "jpeg"],
         key="s1_upload",
         help="Upload a Sentinel-1 SAR image or GeoTIFF.",
     )
-
     st.divider()
     st.markdown("### Viewer")
-
     show_optical = st.checkbox("Show optical imagery", value=True)
     show_sar = st.checkbox("Show SAR imagery", value=True)
-
     st.divider()
-
     if st.button("Clear workspace", use_container_width=True):
         st.session_state.query = ""
         st.session_state.result = None
         st.session_state.analysis_complete = False
         st.rerun()
-
-
 # ============================================================
 # Main Input Area
 # ============================================================
-
 left, right = st.columns([1.15, 0.85], gap="large")
-
 with left:
     st.subheader("Natural Language Query")
     st.caption("Ask the satellite imagery what you want to know.")
-
     presets = {
         "Custom query": "",
         "Water detection": "Is there water in this image?",
@@ -679,15 +539,12 @@ with left:
         "Agriculture": "Locate the agricultural fields",
         "Terrain": "What type of terrain is shown?",
     }
-
     preset = st.selectbox(
         "Query preset",
         list(presets.keys()),
     )
-
     if preset != "Custom query":
         st.session_state.query = presets[preset]
-
     query = st.text_area(
         "Your question",
         value=st.session_state.query,
@@ -695,16 +552,13 @@ with left:
         placeholder="Example: Is there water in this image?",
     )
     st.session_state.query = query
-
     analyze = st.button(
         "Analyze imagery →",
         type="primary",
         use_container_width=True,
     )
-
 with right:
     st.subheader("Data Inventory")
-
     with st.container(border=True):
         if s2_file is not None:
             st.markdown(f"**🟢 Sentinel-2**")
@@ -712,7 +566,6 @@ with right:
         else:
             st.markdown("**Sentinel-2**")
             st.caption("No optical imagery uploaded")
-
     with st.container(border=True):
         if s1_file is not None:
             st.markdown("**🔵 Sentinel-1**")
@@ -720,45 +573,34 @@ with right:
         else:
             st.markdown("**Sentinel-1**")
             st.caption("No SAR imagery uploaded")
-
-
 # ============================================================
 # Analysis
 # ============================================================
-
 if analyze:
     if not query.strip():
         st.warning("Enter a question before starting the analysis.")
-
     elif s2_file is None and s1_file is None:
         st.warning("Upload at least one Sentinel-1 or Sentinel-2 image.")
-
     else:
         with st.spinner("Analyzing satellite imagery..."):
             try:
                 _, _, controller = initialize_model()
-
                 s2_tensor = None
                 s1_tensor = None
-
                 if s2_file is not None:
                     s2_raster = read_uploaded_raster(s2_file)
-
                     if s2_raster is not None:
                         s2_tensor = raster_to_model_tensor(s2_raster, bands=12)
                     else:
                         s2_image = uploaded_file_to_numpy(s2_file)
                         s2_tensor = image_to_tensor(s2_image, bands=12)
-
                 if s1_file is not None:
                     s1_raster = read_uploaded_raster(s1_file)
-
                     if s1_raster is not None:
                         s1_tensor = raster_to_model_tensor(s1_raster, bands=2)
                     else:
                         s1_image = uploaded_file_to_numpy(s1_file)
                         s1_tensor = image_to_tensor(s1_image, bands=2)
-
                 if s2_tensor is None and s1_tensor is None:
                     st.error("The uploaded imagery could not be read.")
                 else:
@@ -767,45 +609,35 @@ if analyze:
                         s2_image=s2_tensor,
                         s1_image=s1_tensor,
                     )
-
                     st.session_state.result = result
                     st.session_state.analysis_complete = True
-
             except Exception as exc:
                 st.session_state.result = {
                     "success": False,
                     "errors": [str(exc)],
                 }
                 st.session_state.analysis_complete = True
-
-
 # ============================================================
 # Analysis Results
 # ============================================================
-
 if st.session_state.analysis_complete:
     result = st.session_state.result
     st.divider()
     st.subheader("Analysis Output")
-
     if result and result.get("success"):
         answer = result.get("answer", "No answer returned.")
         confidence = result.get("confidence")
         task_type = result.get("task_type", "unknown")
-
         c1, c2, c3 = st.columns([2.2, 1, 1], gap="medium")
-
         with c1:
             with st.container(border=True):
                 st.markdown("#### Answer")
                 st.write(answer)
-
         with c2:
             st.metric(
                 "Task",
                 str(task_type).replace("_", " ").title(),
             )
-
         with c3:
             if confidence is None:
                 st.metric("Confidence", "—")
@@ -814,7 +646,6 @@ if st.session_state.analysis_complete:
                     st.metric("Confidence", f"{float(confidence):.1%}")
                 except (ValueError, TypeError):
                     st.metric("Confidence", str(confidence))
-
         trace = result.get("trace")
         if trace:
             with st.expander("View execution details"):
@@ -822,30 +653,22 @@ if st.session_state.analysis_complete:
                     st.code(trace, language="json")
                 else:
                     st.json(trace)
-
     else:
         st.error("Analysis failed.")
         errors = result.get("errors", ["Unknown processing error."]) if result else ["Unknown processing error."]
         for error in errors:
             st.write(f"• {error}")
-
-
 # ============================================================
 # Geospatial Viewer
 # ============================================================
-
 st.divider()
 st.subheader("Geospatial Viewer")
 st.caption("Preview the uploaded satellite imagery used by the analysis pipeline.")
-
 viewer_left, viewer_right = st.columns(2, gap="medium")
-
 with viewer_left:
     st.markdown("#### Sentinel-2 · Optical")
-
     if s2_file is not None and show_optical:
         s2_raster = read_uploaded_raster(s2_file)
-
         if s2_raster is not None:
             preview = create_preview(s2_raster)
             if preview is not None:
@@ -862,13 +685,10 @@ with viewer_left:
         st.info("Optical imagery is hidden. Enable it from the Viewer controls.")
     else:
         st.info("Upload Sentinel-2 imagery to preview it here.")
-
 with viewer_right:
     st.markdown("#### Sentinel-1 · SAR")
-
     if s1_file is not None and show_sar:
         s1_raster = read_uploaded_raster(s1_file)
-
         if s1_raster is not None:
             preview = create_preview(s1_raster)
             if preview is not None:
@@ -885,11 +705,8 @@ with viewer_right:
         st.info("SAR imagery is hidden. Enable it from the Viewer controls.")
     else:
         st.info("Upload Sentinel-1 imagery to preview it here.")
-
-
 # ============================================================
 # Footer
 # ============================================================
-
 st.divider()
-st.caption("SatQuery AI · Earth Observation Intelligence")
+st.caption("SatQuery AI · Earth Observation Intelligence · Team Aarohan")
