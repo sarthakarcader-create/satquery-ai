@@ -151,8 +151,7 @@ div[data-testid="stMarkdownContainer"] > div {
     );
 }
 /* =========================
-   SVG: MAIN HEADING
-   Shifted right of the baked-in Aarohan badge
+   MAIN HEADING
    ========================= */
 .hero-title {
     position: absolute;
@@ -173,12 +172,12 @@ div[data-testid="stMarkdownContainer"] > div {
     text-shadow: 2px 4px 14px rgba(0, 0, 0, 0.38);
 }
 /* =========================
-   SVG: RIGHT-HAND MESSAGE
+   RIGHT-HAND MESSAGE
    ========================= */
 .hero-message {
     position: absolute;
     z-index: 3;
-    left: 77.0vw;
+    left: 74.6vw;
     top: 42.5vh;
     margin: 0 !important;
     padding: 0 !important;
@@ -195,13 +194,13 @@ div[data-testid="stMarkdownContainer"] > div {
     text-shadow: 2px 4px 14px rgba(0, 0, 0, 0.38);
 }
 /* =========================
-   SVG: LAUNCH BUTTON
+   LAUNCH BUTTON
    ========================= */
 /* Native Streamlit button is used so the existing launch()
    state transition remains reliable. */
 div[data-testid="stButton"] {
     position: fixed !important;
-    left: 77.0vw !important;
+    left: 74.6vw !important;
     top: 77.6vh !important;
     width: 196px !important;
     height: 52px !important;
@@ -286,26 +285,13 @@ div[data-testid="stButton"] > button:focus-visible {
         font-size: clamp(3rem, 7.4vw, 5.4rem) !important;
     }
     .hero-message {
-        left: 72.0vw;
+        left: 69vw;
         top: 44vh;
         font-size: clamp(2.35rem, 5vw, 4.1rem) !important;
         line-height: 1.06 !important;
     }
     div[data-testid="stButton"] {
-        left: 72.0vw !important;
-        top: 77vh !important;
-        width: 176px !important;
-        height: 48px !important;
-    }
-}
-    .hero-message {
-        left: 58vw;
-        top: 44vh;
-        font-size: clamp(2.35rem, 5vw, 4.1rem) !important;
-        line-height: 1.06 !important;
-    }
-    div[data-testid="stButton"] {
-        left: 58vw !important;
+        left: 69vw !important;
         top: 77vh !important;
         width: 176px !important;
         height: 48px !important;
