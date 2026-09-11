@@ -60,7 +60,7 @@ def get_base64(path: str) -> str:
     return base64.b64encode(video_path.read_bytes()).decode()
 
 
-HERO_VIDEO = get_base64(PROJECT_ROOT / "assets" / "hero.mp4")
+HERO_VIDEO = get_base64(str(PROJECT_ROOT / "assets" / "hero.mp4"))
 
 
 # ============================================================
@@ -118,289 +118,263 @@ st.markdown(
 )
 
 
+
 if not st.session_state.launched:
     st.markdown(
-        r"""<style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Poppins:wght@700;800;900&display=swap');
+        """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
 
-        /* Remove Streamlit chrome on the landing screen */
-        [data-testid="stHeader"],
-        footer,
-        section[data-testid="stSidebar"] {
-            display: none !important;
-        }
+/* Remove Streamlit chrome on the landing screen */
+[data-testid="stHeader"],
+footer,
+section[data-testid="stSidebar"] {
+    display: none !important;
+}
 
-        .block-container {
-            padding: 0 !important;
-            max-width: 100% !important;
-        }
+/* Full-bleed page */
+.block-container {
+    padding: 0 !important;
+    max-width: none !important;
+}
 
-        .stApp {
-            overflow: hidden;
-        }
+.stApp {
+    overflow: hidden;
+    background: #07111f !important;
+}
 
-        div[data-testid="stMarkdownContainer"],
-        div[data-testid="stMarkdownContainer"] > div {
-            background: transparent !important;
-        }
+/* Do NOT let the markdown container become a visible card */
+div[data-testid="stMarkdown"],
+div[data-testid="stMarkdownContainer"],
+div[data-testid="stMarkdownContainer"] > div {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
 
-        /* ============================================================
-           HERO SECTION
-           ============================================================ */
+/* Hero */
+.hero {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: #000;
+}
 
-        .hero-wrapper {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            box-sizing: border-box;
-            background: #000;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+/* Video is already the complete Earth + satellite visual */
+.hero-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    display: block;
+    z-index: 0;
+}
 
-        .hero-video {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            object-position: center center;
-            z-index: 0;
-        }
+/* Subtle darkening on the left and lower-right, matching the SVG */
+.hero-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        linear-gradient(
+            90deg,
+            rgba(0, 0, 20, 0.28) 0%,
+            rgba(0, 0, 20, 0.04) 48%,
+            rgba(0, 0, 0, 0.10) 100%
+        ),
+        linear-gradient(
+            180deg,
+            rgba(0, 0, 0, 0.08) 0%,
+            rgba(0, 0, 0, 0.00) 48%,
+            rgba(0, 0, 0, 0.10) 100%
+        );
+}
 
-        /* Cinematic gradient overlay */
-        .hero-overlay {
-            position: absolute;
-            inset: 0;
-            z-index: 1;
-            pointer-events: none;
-            background:
-                linear-gradient(
-                    135deg,
-                    rgba(0, 0, 0, 0.55) 0%,
-                    rgba(0, 0, 0, 0.15) 50%,
-                    rgba(0, 0, 0, 0.45) 100%
-                );
-        }
+/* SVG-equivalent headline */
+.hero-title {
+    position: absolute;
+    top: 4.4rem;
+    left: 1.7rem;
+    z-index: 3;
 
-        /* Content container */
-        .hero-content {
-            position: relative;
-            z-index: 2;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 4.5rem;
-            box-sizing: border-box;
-            pointer-events: none;
-        }
+    margin: 0;
+    padding: 0;
 
-        /* ============================================================
-           HEADLINE
-           ============================================================ */
+    font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif;
+    font-size: clamp(4.2rem, 7.0vw, 7.8rem);
+    font-weight: 400;
+    line-height: 0.92;
+    letter-spacing: 1px;
 
-        .hero-title {
-            margin: 0;
-            padding: 0;
-            font-family: 'Poppins', 'Anton', Impact, sans-serif;
-            font-size: clamp(3.5rem, 8vw, 8rem);
-            font-weight: 900;
-            line-height: 1;
-            letter-spacing: -2px;
-            color: #ffffff;
-            text-shadow: 
-                4px 6px 20px rgba(0, 0, 0, 0.75),
-                0 0 40px rgba(100, 150, 255, 0.2);
-            display: block;
-            width: fit-content;
-            max-width: 90vw;
-        }
+    color: #ffffff !important;
+    white-space: nowrap;
 
-        .hero-subtitle {
-            margin: 0.8rem 0 0 0;
-            padding: 0;
-            font-family: 'Inter', sans-serif;
-            font-size: clamp(1rem, 2.5vw, 1.25rem);
-            font-weight: 400;
-            line-height: 1.5;
-            letter-spacing: 0.5px;
-            color: rgba(232, 238, 247, 0.85);
-            text-shadow: 2px 3px 12px rgba(0, 0, 0, 0.7);
-            width: fit-content;
-            max-width: 90vw;
-        }
+    text-shadow: 3px 4px 12px rgba(0, 0, 0, 0.38);
+}
 
-        /* ============================================================
-           TAGLINE
-           ============================================================ */
+/* SVG-equivalent right-side message */
+.hero-message {
+    position: absolute;
+    right: 2.2rem;
+    top: 49.3%;
+    transform: translateY(-50%);
+    z-index: 3;
 
-        .hero-tagline {
-            margin: 0;
-            padding: 0;
-            font-family: 'Poppins', sans-serif;
-            font-size: clamp(1.75rem, 5vw, 3.5rem);
-            font-weight: 800;
-            line-height: 1.1;
-            letter-spacing: -1px;
-            color: #ffffff;
-            text-shadow: 3px 4px 16px rgba(0, 0, 0, 0.8);
-            text-align: left;
-            max-width: 90vw;
-        }
+    margin: 0;
+    padding: 0;
 
-        .hero-tagline-accent {
-            display: block;
-            background: linear-gradient(135deg, #6BA3FF, #A8D5FF);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-weight: 900;
-        }
+    font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif;
+    font-size: clamp(2.4rem, 4.1vw, 4.5rem);
+    font-weight: 400;
+    line-height: 0.91;
+    letter-spacing: 0.4px;
 
-        .hero-bottom {
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            gap: 2rem;
-        }
+    color: #ffffff;
+    text-align: left;
+    white-space: nowrap;
 
-        .hero-text-group {
-            flex: 1;
-        }
+    text-shadow: 3px 4px 13px rgba(0, 0, 0, 0.50);
+}
 
-        /* ============================================================
-           CUSTOM LAUNCH BUTTON
-           ============================================================ */
+/* Native Streamlit button is used only for reliable state transition.
+   It is styled to look like the SVG's custom Launch pill. */
+div[data-testid="stButton"] {
+    position: fixed !important;
+    right: 11.0rem;
+    top: 80.2%;
+    transform: translateY(-50%);
+    z-index: 20;
 
-        .hero-button-wrapper {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            pointer-events: auto;
-            min-height: 70px;
-        }
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
 
-        .hero-button {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            padding: 14px 48px;
-            font-family: 'Poppins', sans-serif;
-            font-size: 1.05rem;
-            font-weight: 700;
-            letter-spacing: 0.8px;
-            color: #ffffff;
-            background: linear-gradient(135deg, rgba(107, 163, 255, 0.25), rgba(168, 213, 255, 0.15));
-            border: 2px solid rgba(255, 255, 255, 0.6);
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            box-shadow: 
-                0 8px 32px rgba(0, 0, 0, 0.3),
-                inset 0 1px 1px rgba(255, 255, 255, 0.2);
-            text-decoration: none;
-            white-space: nowrap;
-        }
+div[data-testid="stButton"] > button {
+    min-width: 166px !important;
+    min-height: 50px !important;
 
-        .hero-button:hover {
-            background: linear-gradient(135deg, rgba(107, 163, 255, 0.4), rgba(168, 213, 255, 0.3));
-            border-color: rgba(255, 255, 255, 0.9);
-            color: #ffffff;
-            transform: translateY(-3px);
-            box-shadow:
-                0 12px 42px rgba(107, 163, 255, 0.35),
-                0 0 20px rgba(168, 213, 255, 0.2),
-                inset 0 1px 1px rgba(255, 255, 255, 0.3);
-        }
+    padding: 9px 16px 9px 24px !important;
 
-        .hero-button:active {
-            transform: translateY(-1px);
-            box-shadow:
-                0 8px 32px rgba(0, 0, 0, 0.3),
-                inset 0 1px 1px rgba(255, 255, 255, 0.2);
-        }
+    border: 0 !important;
+    border-radius: 999px !important;
 
-        .hero-button-arrow {
-            display: inline-block;
-            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-            font-weight: 900;
-            font-size: 1.2rem;
-        }
+    background: #ffffff !important;
+    color: #5875ff !important;
 
-        .hero-button:hover .hero-button-arrow {
-            transform: translateX(4px);
-        }
+    font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
+    font-size: 1.35rem !important;
+    font-weight: 400 !important;
+    font-style: italic !important;
+    letter-spacing: 0.2px !important;
 
-        /* ============================================================
-           RESPONSIVE DESIGN
-           ============================================================ */
+    box-shadow: none !important;
+    transition: transform 0.18s ease, box-shadow 0.18s ease !important;
+}
 
-        @media (max-width: 1024px) {
-            .hero-content {
-                padding: 3.5rem 2.5rem;
-            }
+/* Use the Streamlit button's real text; the circular icon is provided via CSS */
+div[data-testid="stButton"] > button p {
+    margin: 0 !important;
+    line-height: 1 !important;
+}
 
-            .hero-title {
-                font-size: clamp(2.5rem, 10vw, 5.5rem);
-                letter-spacing: -1px;
-            }
+div[data-testid="stButton"] > button::after {
+    content: '▶';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 
-            .hero-tagline {
-                font-size: clamp(1.4rem, 6vw, 3rem);
-            }
+    width: 31px;
+    height: 31px;
+    margin-left: 10px;
 
-            .hero-bottom {
-                flex-direction: column;
-                justify-content: flex-end;
-                align-items: flex-start;
-            }
+    border-radius: 50%;
+    background: #5c78ff;
+    color: #ffffff;
 
-            .hero-button-wrapper {
-                width: 100%;
-                justify-content: flex-start;
-            }
-        }
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    font-style: normal;
+    line-height: 1;
+    vertical-align: middle;
+}
 
-        @media (max-width: 640px) {
-            .hero-content {
-                padding: 2rem;
-            }
+div[data-testid="stButton"] > button:hover {
+    background: #ffffff !important;
+    color: #5875ff !important;
+    transform: scale(1.035);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18) !important;
+}
 
-            .hero-title {
-                font-size: clamp(2rem, 12vw, 4rem);
-                letter-spacing: -0.5px;
-            }
+div[data-testid="stButton"] > button:hover::after {
+    background: #4f6cff;
+}
 
-            .hero-subtitle {
-                font-size: clamp(0.85rem, 3vw, 1rem);
-            }
+div[data-testid="stButton"] > button:active {
+    transform: scale(0.99);
+}
 
-            .hero-tagline {
-                font-size: clamp(1.2rem, 7vw, 2.5rem);
-                letter-spacing: -0.5px;
-            }
+/* Keep the Streamlit widget itself visually transparent */
+div[data-testid="stButton"] > div {
+    background: transparent !important;
+}
 
-            .hero-button {
-                padding: 12px 36px;
-                font-size: 0.95rem;
-            }
+/* Responsive */
+@media (max-width: 1100px) {
+    .hero-title {
+        left: 1.4rem;
+        top: 3rem;
+        font-size: clamp(3.4rem, 8.5vw, 6rem);
+    }
 
-            .hero-button-arrow {
-                font-size: 1rem;
-            }
-        }
+    .hero-message {
+        right: 1.5rem;
+        font-size: clamp(2rem, 5vw, 3.7rem);
+    }
 
-        </style>""",
+    div[data-testid="stButton"] {
+        right: 7rem;
+        top: 78%;
+    }
+}
+
+@media (max-width: 700px) {
+    .hero-title {
+        top: 2rem;
+        left: 1rem;
+        font-size: clamp(2.4rem, 12vw, 4.3rem);
+        white-space: normal;
+    }
+
+    .hero-message {
+        right: 1rem;
+        top: 56%;
+        font-size: clamp(1.65rem, 8vw, 3rem);
+        white-space: normal;
+        max-width: 78vw;
+    }
+
+    div[data-testid="stButton"] {
+        right: 1rem;
+        top: auto;
+        bottom: 2rem;
+        transform: none;
+    }
+
+    div[data-testid="stButton"] > button {
+        min-width: 145px !important;
+        min-height: 46px !important;
+        font-size: 1.1rem !important;
+    }
+}
+</style>
+        """,
         unsafe_allow_html=True,
     )
 
@@ -410,75 +384,19 @@ if not st.session_state.launched:
 # ============================================================
 
 if not st.session_state.launched:
+    # The markup is deliberately left-aligned at column 0 inside the
+    # HTML string so Streamlit/Markdown cannot interpret it as a code block.
     st.markdown(
-        f"""
-        <div class="hero-wrapper">
-            <video
-                class="hero-video"
-                autoplay
-                muted
-                loop
-                playsinline
-                preload="auto"
-            >
-                <source
-                    src="data:video/mp4;base64,{HERO_VIDEO}"
-                    type="video/mp4"
-                >
-            </video>
-
-            <div class="hero-overlay"></div>
-
-            <div class="hero-content">
-                <div>
-                    <h1 class="hero-title">SATQUERY</h1>
-                    <p class="hero-subtitle">AI-Powered Earth Observation</p>
-                </div>
-
-                <div class="hero-bottom">
-                    <div class="hero-text-group">
-                        <div class="hero-tagline">
-                            Talk to the Earth<br>
-                            <span class="hero-tagline-accent">in Plain Language</span>
-                        </div>
-                    </div>
-                    <div class="hero-button-wrapper">
-                        <button class="hero-button" id="launchBtn">
-                            Launch
-                            <span class="hero-button-arrow">→</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        """,
+        f"""<div class="hero"><video class="hero-video" autoplay muted loop playsinline preload="auto"><source src="data:video/mp4;base64,{HERO_VIDEO}" type="video/mp4"></video><div class="hero-overlay"></div><h1 class="hero-title">SAT QUERY AI</h1><div class="hero-message">Satellite Image<br>Queries<br>Simplified...</div></div>""",
         unsafe_allow_html=True,
     )
 
-    # Add custom JavaScript for button interaction
-    st.markdown(
-        """
-        <script>
-        document.getElementById('launchBtn').addEventListener('click', function() {
-            const stButton = document.querySelector('[data-testid="stButton"] button');
-            if (stButton) {
-                stButton.click();
-            }
-        });
-        </script>
-        """,
-        unsafe_allow_html=True,
+    # One native Streamlit button = reliable session-state transition.
+    st.button(
+        "Launch",
+        key="launch_btn",
+        on_click=launch,
     )
-
-    # Hidden Streamlit button for state management
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        st.button(
-            "LAUNCH SATQUERY",
-            key="launch_btn",
-            on_click=launch,
-            use_container_width=False,
-        )
 
     st.stop()
 
