@@ -55,10 +55,13 @@ st.set_page_config(
 
 @st.cache_data
 def get_base64(path: str) -> str:
-    return base64.b64encode(Path(path).read_bytes()).decode()
+    video_path = Path(path)
+    if not video_path.is_absolute():
+        video_path = PROJECT_ROOT / video_path
+    return base64.b64encode(video_path.read_bytes()).decode()
 
 
-HERO_VIDEO = get_base64("assets/hero.mp4")
+HERO_VIDEO = get_base64(str(PROJECT_ROOT / "assets" / "hero.mp4"))
 
 
 # ============================================================
