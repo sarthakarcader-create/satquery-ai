@@ -50,7 +50,7 @@ st.set_page_config(
 
 
 # ============================================================
-# Hero Image
+# Hero Video
 # ============================================================
 
 @st.cache_data
@@ -58,10 +58,12 @@ def get_base64(path: str) -> str:
     video_path = Path(path)
     if not video_path.is_absolute():
         video_path = PROJECT_ROOT / video_path
+    if not video_path.exists():
+        raise FileNotFoundError(f"Hero video not found: {video_path}")
     return base64.b64encode(video_path.read_bytes()).decode()
 
 
-HERO_VIDEO = get_base64(str(PROJECT_ROOT / "assets" / "hero.mp4"))
+HERO_VIDEO = get_base64(PROJECT_ROOT / "assets" / "hero.mp4")
 
 
 # ============================================================
@@ -119,164 +121,229 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 if not st.session_state.launched:
-    # Landing-only overrides: full-screen video hero with custom overlay content.
     st.markdown(
-        f"""<style>
+        r"""<style>
+        /* Load the same condensed display face used by the landing design.
+           Anton is the primary face; the remaining values are safe fallbacks. */
         @import url('https://fonts.googleapis.com/css2?family=Anton&display=swap');
 
-        [data-testid="stHeader"], footer, section[data-testid="stSidebar"] {{
+        /* Remove Streamlit chrome on the landing screen */
+        [data-testid="stHeader"],
+        footer,
+        section[data-testid="stSidebar"] {
             display: none !important;
-        }}
+        }
 
-        .block-container {{
+        .block-container {
             padding: 0 !important;
             max-width: 100% !important;
-        }}
+        }
 
-        .stApp {{
+        .stApp {
             overflow: hidden;
-        }}
+        }
 
-        /* Full-screen hero */
-        .hero {{
+        /* Remove any visual treatment from Streamlit's markdown wrapper */
+        div[data-testid="stMarkdownContainer"],
+        div[data-testid="stMarkdownContainer"] > div {
+            background: transparent !important;
+        }
+
+        /* ============================================================
+           HERO
+           ============================================================ */
+
+        .hero {
             position: relative;
             width: 100vw;
             height: 100vh;
             margin: 0;
+            padding: 0;
             overflow: hidden;
             box-sizing: border-box;
-            padding: 4rem 4.5rem;
-        }}
+            background: #000;
+        }
 
-        /* Full-screen background video */
-        .hero-video {{
+        .hero-video {
             position: absolute;
             inset: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
-            object-position: center;
+            object-position: center center;
             z-index: 0;
-        }}
+            pointer-events: none;
+        }
 
-        /* Cinematic readability overlay */
-        .hero-overlay {{
+        /* Cinematic overlay */
+        .hero-overlay {
             position: absolute;
             inset: 0;
-            background:
-                linear-gradient(90deg,
-                    rgba(0,0,0,0.55) 0%,
-                    rgba(0,0,0,0.16) 55%,
-                    rgba(0,0,0,0.38) 100%),
-                linear-gradient(0deg,
-                    rgba(0,0,0,0.52) 0%,
-                    rgba(0,0,0,0.04) 55%,
-                    rgba(0,0,0,0.22) 100%);
             z-index: 1;
-        }}
+            pointer-events: none;
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(0, 0, 0, 0.48) 0%,
+                    rgba(0, 0, 0, 0.12) 55%,
+                    rgba(0, 0, 0, 0.34) 100%
+                ),
+                linear-gradient(
+                    180deg,
+                    rgba(0, 0, 0, 0.18) 0%,
+                    rgba(0, 0, 0, 0.02) 48%,
+                    rgba(0, 0, 0, 0.44) 100%
+                );
+        }
 
-        .hero-content {{
-            position: relative;
+        /* ============================================================
+           MAIN HEADLINE
+           ============================================================ */
+
+        .hero-title {
+            position: absolute;
+            top: 3.8rem;
+            left: 4.5rem;
             z-index: 2;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }}
 
-        .hero h1 {{
-            font-family: 'Anton', sans-serif;
-            font-size: clamp(3.5rem, 7vw, 7rem);
-            font-weight: 400;
-            color: white !important;
             margin: 0;
             padding: 0;
-            letter-spacing: 2px;
-            line-height: 0.95;
-            text-shadow: 3px 3px 14px rgba(0,0,0,0.70);
-        }}
 
-        /* Bottom-right text: slightly smaller than the main heading and lifted upward */
-        .tagline-block {{
-            align-self: flex-end;
+            font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif;
+            font-size: clamp(4rem, 7.5vw, 7.5rem);
+            font-weight: 400;
+            line-height: 0.9;
+            letter-spacing: 1.5px;
+
+            color: #ffffff !important;
+            text-shadow: 3px 4px 15px rgba(0, 0, 0, 0.68);
+
+            /* Prevent the heading from inheriting Streamlit margins */
+            display: block;
+            width: fit-content;
+            max-width: none;
+        }
+
+        /* ============================================================
+           BOTTOM-RIGHT TAGLINE
+           ============================================================ */
+
+        .hero-tagline {
+            position: absolute;
+            right: 4.75rem;
+            bottom: 10.75rem;
+            z-index: 2;
+
+            margin: 0;
+            padding: 0;
+
             text-align: right;
-            margin-bottom: 8.5rem;
-            margin-right: 1rem;
-            max-width: 650px;
-        }}
-
-        .tagline-block .tagline {{
-            font-family: 'Anton', sans-serif;
-            font-size: clamp(2rem, 4.2vw, 4.2rem);
+            font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif;
+            font-size: clamp(2.15rem, 4.15vw, 4.15rem);
             font-weight: 400;
-            color: white;
-            line-height: 1.05;
-            letter-spacing: 1px;
-            text-shadow: 2px 2px 12px rgba(0,0,0,0.85);
-        }}
+            line-height: 1.02;
+            letter-spacing: 0.8px;
 
-        /* Custom launch button */
-        div[data-testid="stButton"] {{
+            color: #ffffff;
+            text-shadow: 2px 3px 13px rgba(0, 0, 0, 0.82);
+        }
+
+        /* ============================================================
+           LAUNCH BUTTON
+           ============================================================ */
+
+        div[data-testid="stButton"] {
             position: fixed;
-            right: 4.5rem;
-            bottom: 3rem;
-            z-index: 20;
+            right: 4.75rem;
+            bottom: 3.15rem;
+            z-index: 50;
             width: auto !important;
-        }}
+            margin: 0 !important;
+            padding: 0 !important;
+        }
 
-        div[data-testid="stButton"] button {{
-            min-height: 58px;
-            padding: 0.7rem 1.9rem;
-            border-radius: 999px;
-            border: 1.5px solid rgba(255,255,255,0.82);
-            background: rgba(255,255,255,0.10);
-            color: white;
-            font-family: 'Anton', sans-serif;
-            font-size: 1.05rem;
-            font-weight: 400;
-            letter-spacing: 2px;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            box-shadow: 0 8px 30px rgba(0,0,0,0.28);
-            transition: all 0.25s ease;
-        }}
+        div[data-testid="stButton"] > button {
+            min-width: 215px !important;
+            min-height: 58px !important;
 
-        div[data-testid="stButton"] button:hover {{
-            background: white;
-            color: #111;
-            border-color: white;
+            padding: 0.65rem 1.65rem !important;
+
+            border: 1.5px solid rgba(255, 255, 255, 0.88) !important;
+            border-radius: 999px !important;
+
+            background: rgba(15, 18, 22, 0.25) !important;
+            color: #ffffff !important;
+
+            font-family: 'Anton', Impact, 'Arial Narrow Bold', sans-serif !important;
+            font-size: 1.02rem !important;
+            font-weight: 400 !important;
+            letter-spacing: 1.8px !important;
+
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+
+            box-shadow:
+                0 10px 30px rgba(0, 0, 0, 0.28);
+
+            transition:
+                background 0.22s ease,
+                color 0.22s ease,
+                border-color 0.22s ease,
+                transform 0.22s ease,
+                box-shadow 0.22s ease;
+        }
+
+        div[data-testid="stButton"] > button:hover {
+            background: rgba(255, 255, 255, 0.96) !important;
+            color: #111111 !important;
+            border-color: #ffffff !important;
+
             transform: translateY(-3px);
-            box-shadow: 0 12px 35px rgba(0,0,0,0.38);
-        }}
 
-        div[data-testid="stButton"] button:active {{
-            transform: translateY(0);
-        }}
+            box-shadow:
+                0 15px 38px rgba(0, 0, 0, 0.38);
+        }
 
-        @media (max-width: 768px) {{
-            .hero {{
-                padding: 2rem;
-            }}
+        div[data-testid="stButton"] > button:focus,
+        div[data-testid="stButton"] > button:focus-visible {
+            color: #ffffff !important;
+            border-color: rgba(255, 255, 255, 0.95) !important;
+            box-shadow:
+                0 0 0 2px rgba(255,255,255,0.15),
+                0 10px 30px rgba(0,0,0,0.28) !important;
+        }
 
-            .hero h1 {{
-                font-size: clamp(3rem, 13vw, 5rem);
-            }}
+        /* ============================================================
+           RESPONSIVE
+           ============================================================ */
 
-            .tagline-block {{
-                margin-bottom: 7rem;
-                margin-right: 0;
-            }}
+        @media (max-width: 768px) {
+            .hero-title {
+                top: 2.25rem;
+                left: 2rem;
+                font-size: clamp(3.2rem, 14vw, 5.2rem);
+            }
 
-            .tagline-block .tagline {{
-                font-size: clamp(1.8rem, 8vw, 3rem);
-            }}
+            .hero-tagline {
+                right: 2rem;
+                bottom: 9rem;
+                font-size: clamp(1.75rem, 8.2vw, 3rem);
+            }
 
-            div[data-testid="stButton"] {{
+            div[data-testid="stButton"] {
                 right: 2rem;
                 bottom: 2rem;
-            }}
-        }}
+            }
+
+            div[data-testid="stButton"] > button {
+                min-width: 190px !important;
+                min-height: 54px !important;
+                font-size: 0.95rem !important;
+            }
+        }
+
         </style>""",
         unsafe_allow_html=True,
     )
@@ -290,6 +357,7 @@ if not st.session_state.launched:
     st.markdown(
         f"""
         <div class="hero">
+
             <video
                 class="hero-video"
                 autoplay
@@ -306,16 +374,13 @@ if not st.session_state.launched:
 
             <div class="hero-overlay"></div>
 
-            <div class="hero-content">
-                <h1>SAT QUERY AI</h1>
+            <h1 class="hero-title">SAT QUERY AI</h1>
 
-                <div class="tagline-block">
-                    <div class="tagline">
-                        Talk to the Earth<br>
-                        in Plain Language.
-                    </div>
-                </div>
+            <div class="hero-tagline">
+                Talk to the Earth<br>
+                in Plain Language.
             </div>
+
         </div>
         """,
         unsafe_allow_html=True,
@@ -326,11 +391,14 @@ if not st.session_state.launched:
         key="launch_btn",
         on_click=launch,
     )
+
     st.stop()
 
 
 # ============================================================
 # Helpers
+# ============================================================
+
 # ============================================================
 
 def format_bytes(size: int) -> str:
